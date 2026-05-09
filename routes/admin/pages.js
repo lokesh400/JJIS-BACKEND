@@ -23,6 +23,10 @@ router.get("/admin/jee-advanced-tests/:testId", (req, res) =>
 router.get("/admin/tests/:testId/results", (req, res) =>
   res.render("admin/test-results", { title: "Test Results" }),
 );
+router.get("/admin/tests/:testId/download-pdf", (req, res) =>
+  res.render("admin/test-pdf-preview", { title: "Print Test PDF", testId: req.params.testId }),
+);
+
 router.get("/admin/test-series", (req, res) =>
   res.render("admin/test-series-list", { title: "Test Series" }),
 );

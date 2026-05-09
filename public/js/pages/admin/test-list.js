@@ -67,6 +67,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         <div class="flex gap-2 flex-shrink-0">
           <button onclick="window.location.href='${editHref}'"
                   class="px-3 py-2 text-sm bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition">✏ Edit</button>
+          <button onclick="window.open('/admin/tests/${t._id}/download-pdf', '_blank')"
+                  class="px-3 py-2 text-sm bg-indigo-50 text-indigo-700 rounded-lg hover:bg-indigo-100 transition">📄 PDF</button>
           <button onclick="window.location.href='/admin/tests/${t._id}/results'"
                   class="px-3 py-2 text-sm bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100 transition">📊 Results</button>
           <button onclick="togglePublish('${t._id}', ${t.isPublished})"

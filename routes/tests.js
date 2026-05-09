@@ -4,6 +4,8 @@ const TestAttempt = require('../models/TestAttempt');
 const TestSeries = require('../models/TestSeries');
 const Purchase = require('../models/Purchase');
 const Question = require('../models/Question');
+const PDFDocument = require('pdfkit');
+const axios = require('axios');
 const { auth, adminOnly } = require('../middleware/auth');
 
 const router = express.Router();
@@ -43,6 +45,113 @@ router.post('/', auth, adminOnly, async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 });
+
+// Download test questions as PDF (admin)
+async function downloadPdfHandler(req, res) {
+  try {
+    const test = await Test.findById(req.params.id)
+      .populate({
+        path: 'sections.questions.question',
+        populate: [
+          { path: 'subject', select: 'name' },
+          { path: 'chapter', select: 'name' },
+          { path: 'topic', select: 'name' },
+        ],
+      })
+      .lean();
+
+    if (!test) return res.status(404).json({ message: 'Test not found' });
+
+    const fileName = `${(test.name || 'test').replace(/[^a-z0-9_-]/gi, '_')}.pdf`;
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
+
+    const doc = new PDFDocument({ margin: 36, size: 'A4' });
+    doc.pipe(res);
+
+    const pageH = doc.page.height;
+    const margin = doc.page.margins.left;
+    const contentW = doc.page.width - doc.page.margins.left - doc.page.margins.right;
+    const gap = 14;
+    const colW = (contentW - gap) / 2;
+    const cardH = 240;
+    const rowGap = 10;
+    const topStartY = 74;
+
+    const sanitize = (v) => (v === null || v === undefined ? '-' : String(v));
+    const loadImageBuffer = async (url) => {
+      if (!url) return null;
+      try {
+        const resp = await axios.get(url, { responseType: 'arraybuffer', timeout: 12000 });
+        return Buffer.from(resp.data);
+      } catch {
+        return null;
+      }
+    };
+
+    const drawHeader = () => {
+      doc.fontSize(20).font('Helvetica-Bold').text(test.name || 'Test', margin, 36, { width: contentW, align: 'center' });
+    };
+
+    const drawSectionBar = (name) => {
+      doc.fillColor('#1f2937').font('Helvetica-Bold').fontSize(12).text(`${name || 'Untitled Section'}`, margin, 58, {
+        width: contentW,
+        align: 'left',
+      });
+      doc.fillColor('#000000');
+    };
+
+    const drawQuestionCard = async (entry, index, x, y) => {
+      const q = entry.question || {};
+      const imageY = y;
+      const imageH = 218;
+      const img = await loadImageBuffer(q.imageUrl);
+      if (img) {
+        try {
+          doc.image(img, x, imageY, { fit: [colW, imageH], align: 'center', valign: 'top' });
+        } catch {
+          doc.fontSize(9).fillColor('#6b7280').text('Image could not be rendered', x + 16, imageY + imageH / 2, { width: colW - 32, align: 'center' }).fillColor('#000000');
+        }
+      } else {
+        doc.fontSize(9).fillColor('#6b7280').text('Image not available', x + 16, imageY + imageH / 2, { width: colW - 32, align: 'center' }).fillColor('#000000');
+      }
+      doc.fillColor('#000000').font('Helvetica-Bold').fontSize(12).text(`Q${index}`, x + 4, imageY + 4);
+    };
+
+    let qNo = 1;
+
+    for (let s = 0; s < (test.sections || []).length; s += 1) {
+      const section = test.sections[s];
+      if (s > 0) doc.addPage();
+      drawHeader();
+      drawSectionBar(section.name);
+
+      let currentY = topStartY;
+      for (let i = 0; i < (section.questions || []).length; i += 2) {
+        if (currentY + cardH > pageH - 36) {
+          doc.addPage();
+          drawHeader();
+          drawSectionBar(section.name);
+          currentY = topStartY;
+        }
+        await drawQuestionCard(section.questions[i], qNo, margin, currentY);
+        qNo += 1;
+        if (section.questions[i + 1]) {
+          await drawQuestionCard(section.questions[i + 1], qNo, margin + colW + gap, currentY);
+          qNo += 1;
+        }
+        currentY += cardH + rowGap;
+      }
+    }
+
+    doc.end();
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+}
+
+router.get('/admin/:id/download-pdf', auth, adminOnly, downloadPdfHandler);
+router.get('/:id/download-pdf', auth, adminOnly, downloadPdfHandler);
 
 // Get single test (admin - full details)
 router.get('/admin/:id', auth, adminOnly, async (req, res) => {

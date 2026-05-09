@@ -1,0 +1,26 @@
+<%- include('../partials/head', { title: 'Print Test PDF' }) %>
+<body class="min-h-screen bg-slate-100 text-gray-900">
+  <div class="max-w-7xl mx-auto px-4 md:px-6 py-4 md:py-6">
+    <div class="bg-white border border-slate-200 rounded-xl p-3 md:p-4 flex items-center justify-between gap-3 mb-4">
+      <h1 class="text-base md:text-lg font-semibold text-slate-800">Test PDF Preview</h1>
+      <div class="flex items-center gap-2">
+        <button onclick="window.print()" class="px-4 py-2 rounded-lg bg-slate-800 text-white text-sm font-medium hover:bg-slate-700 transition">Print</button>
+        <a id="download-link" href="#" class="px-4 py-2 rounded-lg bg-slate-200 text-slate-800 text-sm font-medium hover:bg-slate-300 transition">Download</a>
+      </div>
+    </div>
+
+    <div class="bg-white border border-slate-200 rounded-xl overflow-hidden" style="height: calc(100vh - 120px);">
+      <iframe id="pdf-frame" title="Test PDF" class="w-full h-full" frameborder="0"></iframe>
+    </div>
+  </div>
+
+  <script>
+    (function () {
+      const testId = '<%= testId %>';
+      const pdfUrl = `/api/tests/admin/${testId}/download-pdf`;
+      document.getElementById('pdf-frame').src = pdfUrl;
+      document.getElementById('download-link').href = pdfUrl;
+    })();
+  </script>
+</body>
+</html>

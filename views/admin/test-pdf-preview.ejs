@@ -1,25 +1,301 @@
-<%- include('../partials/head', { title: 'Print Test PDF' }) %>
-<body class="min-h-screen bg-slate-100 text-gray-900">
-  <div class="max-w-7xl mx-auto px-4 md:px-6 py-4 md:py-6">
-    <div class="bg-white border border-slate-200 rounded-xl p-3 md:p-4 flex items-center justify-between gap-3 mb-4">
-      <h1 class="text-base md:text-lg font-semibold text-slate-800">Test PDF Preview</h1>
-      <div class="flex items-center gap-2">
-        <button onclick="window.print()" class="px-4 py-2 rounded-lg bg-slate-800 text-white text-sm font-medium hover:bg-slate-700 transition">Print</button>
-        <a id="download-link" href="#" class="px-4 py-2 rounded-lg bg-slate-200 text-slate-800 text-sm font-medium hover:bg-slate-300 transition">Download</a>
-      </div>
-    </div>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Print Test Paper</title>
+  <style>
+    :root {
+      --ink: #111827;
+      --muted: #6b7280;
+      --line: #e5e7eb;
+      --paper: #ffffff;
+      --accent: #0f172a;
+      --bg: #f8fafc;
+    }
 
-    <div class="bg-white border border-slate-200 rounded-xl overflow-hidden" style="height: calc(100vh - 120px);">
-      <iframe id="pdf-frame" title="Test PDF" class="w-full h-full" frameborder="0"></iframe>
-    </div>
+    * {
+      box-sizing: border-box;
+    }
+
+    .hidden {
+      display: none !important;
+    }
+
+    html, body {
+      margin: 0;
+      padding: 0;
+      background: var(--bg);
+      color: var(--ink);
+      font-family: Arial, Helvetica, sans-serif;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+
+    @page {
+      size: A4;
+      margin: 12mm;
+    }
+
+    .toolbar {
+      max-width: 980px;
+      margin: 0 auto;
+      padding: 16px 16px 0;
+      display: flex;
+      justify-content: flex-end;
+      align-items: center;
+    }
+
+    .print-btn {
+      appearance: none;
+      border: 0;
+      background: var(--accent);
+      color: #fff;
+      border-radius: 10px;
+      padding: 10px 16px;
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+      box-shadow: 0 8px 20px rgba(15, 23, 42, 0.14);
+    }
+
+    .print-btn:hover {
+      background: #1f2937;
+    }
+
+    .loading {
+      max-width: 980px;
+      margin: 24px auto;
+      padding: 24px 16px 0;
+      color: var(--muted);
+      font-size: 15px;
+    }
+
+    .paper {
+      max-width: 980px;
+      margin: 0 auto;
+      padding: 14px 16px 28px;
+      background: var(--paper);
+    }
+
+    .header {
+      text-align: center;
+      padding: 6px 0 18px;
+      border-bottom: 1px solid var(--line);
+      margin-bottom: 18px;
+    }
+
+    .title {
+      margin: 0;
+      font-size: 26px;
+      line-height: 1.2;
+      font-weight: 800;
+      color: var(--ink);
+      letter-spacing: 0.2px;
+    }
+
+    .meta {
+      margin-top: 8px;
+      display: flex;
+      justify-content: center;
+      flex-wrap: wrap;
+      gap: 10px 18px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .section {
+      margin-top: 18px;
+    }
+
+    .section-title {
+      margin: 0 0 12px;
+      padding-top: 4px;
+      font-size: 16px;
+      font-weight: 800;
+      color: var(--ink);
+    }
+
+    .question-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 18px;
+      margin-bottom: 16px;
+      break-inside: avoid;
+      page-break-inside: avoid;
+    }
+
+    .question-card {
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+      min-width: 0;
+      break-inside: avoid;
+      page-break-inside: avoid;
+    }
+
+    .question-card-empty {
+      visibility: hidden;
+    }
+
+    .question-no {
+      flex: 0 0 auto;
+      min-width: 34px;
+      font-weight: 800;
+      font-size: 14px;
+      line-height: 1.45;
+      color: var(--ink);
+      padding-top: 1px;
+    }
+
+    .question-content {
+      flex: 1 1 auto;
+      min-width: 0;
+    }
+
+    .question-image {
+      display: block;
+      width: 100%;
+      height: auto;
+      border: 0;
+      outline: 0;
+    }
+
+    .image-placeholder {
+      width: 100%;
+      min-height: 84px;
+    }
+
+    .question-foot {
+      display: none;
+    }
+
+    .error {
+      color: #b91c1c;
+      font-size: 14px;
+      line-height: 1.5;
+      margin-top: 10px;
+    }
+
+    @media (max-width: 820px) {
+      .toolbar,
+      .paper,
+      .loading {
+        max-width: 100%;
+      }
+
+      .question-row {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media print {
+      html, body {
+        background: #fff;
+      }
+
+      .toolbar {
+        display: none !important;
+      }
+
+      .loading {
+        display: none !important;
+      }
+
+      .paper {
+        max-width: none;
+        margin: 0;
+        padding: 0;
+      }
+
+      .question-row {
+        grid-template-columns: 1fr 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="toolbar no-print">
+    <button class="print-btn" type="button" onclick="window.print()">Print Test Paper</button>
   </div>
+
+  <div id="loading" class="loading">Generating test paper...</div>
+
+  <main id="paper" class="paper hidden"></main>
 
   <script>
     (function () {
-      const testId = '<%= testId %>';
-      const pdfUrl = `/api/tests/admin/${testId}/download-pdf`;
-      document.getElementById('pdf-frame').src = pdfUrl;
-      document.getElementById('download-link').href = pdfUrl;
+      const testData = <%- testData %>;
+      const paperEl = document.getElementById('paper');
+      const loadingEl = document.getElementById('loading');
+
+      const escapeHtml = (value) => String(value ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+
+      const sections = Array.isArray(testData.sections) ? testData.sections : [];
+      const totalQuestions = sections.reduce((sum, section) => {
+        return sum + (Array.isArray(section.questions) ? section.questions.length : 0);
+      }, 0);
+
+      function renderQuestionCard(questionEntry, questionNumber) {
+        const question = (questionEntry && questionEntry.question) ? questionEntry.question : {};
+        const imageUrl = question.imageUrl ? escapeHtml(question.imageUrl) : '';
+
+        return `
+          <div class="question-card">
+            <div class="question-no">Q${questionNumber}</div>
+            <div class="question-content">
+              ${imageUrl ? `<img class="question-image" src="${imageUrl}" alt="Question ${questionNumber}">` : '<div class="image-placeholder"></div>'}
+            </div>
+          </div>
+        `;
+      }
+
+      function render() {
+        try {
+          let html = '';
+          html += `
+            <section class="header">
+              <h1 class="title">${escapeHtml(testData.name || 'Test Paper')}</h1>
+              <div class="meta">
+                <span>Duration: ${escapeHtml(testData.duration || '-')} minutes</span>
+                <span>Total Questions: ${totalQuestions}</span>
+                ${testData.description ? `<span>${escapeHtml(testData.description)}</span>` : ''}
+              </div>
+            </section>
+          `;
+
+          let questionCounter = 1;
+          sections.forEach((section, sectionIndex) => {
+            const sectionQuestions = Array.isArray(section.questions) ? section.questions : [];
+            html += `<section class="section">`;
+            html += `<h2 class="section-title">${escapeHtml(section.name || `Section ${sectionIndex + 1}`)}</h2>`;
+
+            for (let index = 0; index < sectionQuestions.length; index += 2) {
+              const left = sectionQuestions[index];
+              const right = sectionQuestions[index + 1];
+              html += `<div class="question-row">`;
+              html += renderQuestionCard(left, questionCounter++);
+              html += right ? renderQuestionCard(right, questionCounter++) : '<div class="question-card question-card-empty"></div>';
+              html += `</div>`;
+            }
+
+            html += `</section>`;
+          });
+
+          paperEl.innerHTML = html;
+          paperEl.classList.remove('hidden');
+          loadingEl.remove();
+        } catch (error) {
+          loadingEl.innerHTML = `<div class="error">Error loading test preview: ${escapeHtml(error.message)}</div>`;
+        }
+      }
+
+      render();
     })();
   </script>
 </body>

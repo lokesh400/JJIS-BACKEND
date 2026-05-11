@@ -1,4 +1,6 @@
 const express = require("express");
+const { auth, adminOnly } = require("../../middleware/auth");
+const Test = require("../../models/Test");
 
 const router = express.Router();
 
@@ -23,9 +25,31 @@ router.get("/admin/jee-advanced-tests/:testId", (req, res) =>
 router.get("/admin/tests/:testId/results", (req, res) =>
   res.render("admin/test-results", { title: "Test Results" }),
 );
-router.get("/admin/tests/:testId/download-pdf", (req, res) =>
-  res.render("admin/test-pdf-preview", { title: "Print Test PDF", testId: req.params.testId }),
-);
+router.get("/admin/tests/:testId/download-pdf", auth, adminOnly, async (req, res) => {
+  try {
+    const test = await Test.findById(req.params.testId)
+      .populate({
+        path: 'sections.questions.question',
+        populate: [
+          { path: 'subject', select: 'name' },
+          { path: 'chapter', select: 'name' },
+          { path: 'topic', select: 'name' },
+        ],
+      })
+      .lean();
+
+    if (!test) {
+      return res.status(404).render("404", { title: "Test Not Found" });
+    }
+
+    res.render("admin/test-pdf-preview", { 
+      title: "Print Test PDF", 
+      testData: JSON.stringify(test)
+    });
+  } catch (error) {
+    res.status(500).render("404", { title: "Error" });
+  }
+});
 
 router.get("/admin/test-series", (req, res) =>
   res.render("admin/test-series-list", { title: "Test Series" }),

@@ -3,7 +3,7 @@ require('dotenv').config();
 const express       = require('express');
 const cors          = require('cors');
 const session       = require('express-session');
-const MongoStore   = require('connect-mongo').MongoStore;
+const MongoStore    = require('connect-mongo').MongoStore;
 const passport      = require('./config/passport'); // configures passport strategies
 const helmet        = require('helmet');
 const mongoSanitize = require('express-mongo-sanitize');

@@ -1,0 +1,37 @@
+<%- include('../partials/head', { title: 'Edit Question' }) %>
+<body class="min-h-screen bg-slate-50 text-gray-900">
+  <%- include('../partials/navbar') %>
+  <%- include('../partials/sidebar') %>
+
+  <div class="md:ml-60 pt-14 min-h-screen page-body">
+    <div class="page-header px-6 md:px-8 py-7 fade-up">
+      <p class="text-white/50 text-xs font-semibold uppercase tracking-widest mb-1">Teacher Panel</p>
+      <h1 class="text-2xl md:text-3xl font-bold text-white">Edit Question</h1>
+      <p class="text-white/60 text-sm mt-1">Filter questions by chapter/topic and correct wrong topic mapping.</p>
+    </div>
+
+    <div class="p-6 md:p-8">
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-3 mb-5">
+        <select id="chapter-filter" class="px-3 py-2 border border-gray-300 rounded-lg">
+          <option value="">All Chapters</option>
+        </select>
+        <select id="topic-filter" class="px-3 py-2 border border-gray-300 rounded-lg">
+          <option value="">All Topics</option>
+        </select>
+        <button id="refresh-btn" class="px-4 py-2 border border-gray-200 rounded-xl text-sm text-gray-600 hover:bg-gray-50 transition">Refresh</button>
+      </div>
+
+      <div id="loading" class="text-center py-16 text-gray-400 text-sm">Loading questions...</div>
+      <div id="empty" class="hidden text-center py-16 text-gray-500 text-sm">No questions found for selected filters.</div>
+      <div id="list" class="space-y-4"></div>
+    </div>
+  </div>
+
+  <%- include('../partials/toast') %>
+  <script src="/js/api.js"></script>
+  <script src="/js/toast.js"></script>
+  <script src="/js/auth-guard.js"></script>
+  <script src="/js/sidebar.js"></script>
+  <script src="/js/pages/teacher/question-bank.js"></script>
+</body>
+</html>

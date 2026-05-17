@@ -1,10 +1,114 @@
 const express = require('express');
 const Question = require('../models/Question');
+const Chapter = require('../models/Chapter');
+const Topic = require('../models/Topic');
+const User = require('../models/User');
 const { uploadToRandomCloud, deleteFromCloud } = require('../config/cloudinary');
 const upload = require('../middleware/upload');
 const { auth, adminOnly } = require('../middleware/auth');
 
 const router = express.Router();
+
+async function resolveCurrentUser(req) {
+  if (req.user && req.user._id) return req.user;
+  const sessionUserId = req.session?.passport?.user;
+  if (!sessionUserId) return null;
+  return User.findById(sessionUserId).lean();
+}
+
+async function teacherOnly(req, res, next) {
+  const currentUser = await resolveCurrentUser(req);
+  if (!currentUser || (currentUser.role !== 'teacher' && currentUser.role !== 'admin')) {
+    return res.status(403).json({ message: 'Teacher/Admin access only.' });
+  }
+  req.currentUser = currentUser;
+  return next();
+}
+
+async function getTeacherSubjectId(req) {
+  if (req.currentUser?.role === 'admin') return null;
+  const firstSubject = Array.isArray(req.currentUser?.subjects) ? req.currentUser.subjects[0] : null;
+  return firstSubject ? String(firstSubject) : null;
+}
+
+router.get('/teacher/chapters', auth, teacherOnly, async (req, res) => {
+  try {
+    const subjectId = await getTeacherSubjectId(req);
+    const filter = subjectId ? { subject: subjectId } : {};
+    const chapters = await Chapter.find(filter).sort({ name: 1 }).lean();
+    res.json(chapters);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+router.get('/teacher/topics/:chapterId', auth, teacherOnly, async (req, res) => {
+  try {
+    const subjectId = await getTeacherSubjectId(req);
+    const chapterFilter = subjectId
+      ? { _id: req.params.chapterId, subject: subjectId }
+      : { _id: req.params.chapterId };
+    const chapter = await Chapter.findOne(chapterFilter).lean();
+    if (!chapter) return res.json([]);
+    const topics = await Topic.find({ chapter: req.params.chapterId }).sort({ name: 1 }).lean();
+    res.json(topics);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+router.get('/teacher', auth, teacherOnly, async (req, res) => {
+  try {
+    const subjectId = await getTeacherSubjectId(req);
+    const filter = subjectId ? { subject: subjectId } : {};
+    const questions = await Question.find(filter)
+      .populate('subject', 'name')
+      .populate('chapter', 'name subject')
+      .populate('topic', 'name chapter')
+      .sort({ createdAt: -1 });
+
+    res.json(questions);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+router.patch('/teacher/:id/topic', auth, teacherOnly, async (req, res) => {
+  try {
+    const subjectId = await getTeacherSubjectId(req);
+    const { topic } = req.body || {};
+    if (!topic) {
+      return res.status(400).json({ message: 'Topic is required.' });
+    }
+
+    const questionFilter = subjectId
+      ? { _id: req.params.id, subject: subjectId }
+      : { _id: req.params.id };
+    const question = await Question.findOne(questionFilter);
+    if (!question) return res.status(404).json({ message: 'Question not found.' });
+
+    const newTopic = await Topic.findById(topic).populate('chapter');
+    if (!newTopic || !newTopic.chapter) {
+      return res.status(400).json({ message: 'Selected topic is invalid.' });
+    }
+    if (subjectId && String(newTopic.chapter.subject) !== subjectId) {
+      return res.status(400).json({ message: 'Selected topic is invalid for your subject.' });
+    }
+
+    question.topic = newTopic._id;
+    question.chapter = newTopic.chapter._id;
+    await question.save();
+
+    const updated = await Question.findById(question._id)
+      .populate('subject', 'name')
+      .populate('chapter', 'name subject')
+      .populate('topic', 'name chapter');
+
+    res.json(updated);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
 
 // Get questions with filters
 router.get('/', auth, async (req, res) => {

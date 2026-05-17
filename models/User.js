@@ -15,9 +15,18 @@ const userSchema = new mongoose.Schema({
     trim: true,
     immutable: true,
   },
+  contactMail:{
+    type: String,
+    lowercase: true,
+    trim: true,
+  },
+  subjects: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Subject',
+  }],
   role: {
     type: String,
-    enum: ['admin', 'student'],
+    enum: ['admin', 'student','teacher'],
     default: 'student',
   },
   class: {

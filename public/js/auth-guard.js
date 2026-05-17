@@ -33,7 +33,11 @@ function requireAuth(role) {
     return null;
   }
   if (role && user.role !== role) {
-    window.location.href = user.role === 'admin' ? '/admin/dashboard' : '/student/dashboard';
+    window.location.href = user.role === 'admin'
+      ? '/admin/dashboard'
+      : user.role === 'teacher'
+        ? '/teacher/question-bank'
+        : '/student/dashboard';
     return null;
   }
 

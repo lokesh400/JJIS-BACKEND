@@ -27,6 +27,7 @@ const allowedOrigins = [
   'http://localhost:3000',
   'http://localhost:8081',
   'https://testportal.garudclasses.com',
+  'http://localhost:3030',
 ];
 
 
@@ -130,6 +131,7 @@ app.use('/', require('./routes/public/pages'));
 app.use('/', require('./routes/admin/pages'));
 app.use('/', require('./routes/student/pages'));
 app.use('/', require('./routes/admin/course-pages'));
+app.use('/', require('./routes/teacher/pages'));
 
 // ── API Routes ────────────────────────────────────────────────────────────────
 app.use('/api/auth',        require('./routes/auth'));
@@ -170,6 +172,7 @@ function startKeepAlive() {
 }
 
 app.post('/api/test', (req, res) => {
+  console.log(req.user);
   res.json({ message: 'Test endpoint is working!' });
 });
 

@@ -5,7 +5,9 @@ const rateLimit = require('express-rate-limit');
 const User     = require('../models/User');
 const PasswordResetOtp = require('../models/PasswordResetOtp');
 const { sendPasswordResetOtpEmail } = require('../config/mailer');
-const { auth } = require('../middleware/auth');
+const { auth, adminOnly } = require('../middleware/auth');
+const Subject = require('../models/Subject');
+const TotalMember = require('../models/TotalMembers');
 
 const router = express.Router();
 const PASSWORD_RESET_TOKEN_TTL_SECONDS = Math.max(Number(process.env.PASSWORD_RESET_TOKEN_TTL_SECONDS || 600), 60);
@@ -418,5 +420,112 @@ router.put('/student/profile', auth, async (req, res, next) => {
     next(err);
   }
 });
+
+///////////////////////////////
+//////create team member//////
+//////////////////////////////
+
+router.post('/register/member', auth, adminOnly, async (req, res) => {
+  try {
+    const { name, contactMail, subjects } = req.body || {};
+
+    if (!name || !contactMail || !Array.isArray(subjects) || subjects.length === 0) {
+      return res.status(400).json({ message: 'Name, contactMail and at least one subject are required.' });
+    }
+
+    const normalizedContactMail = String(contactMail).trim().toLowerCase();
+    const normalizedSubjects = subjects;
+
+    const subjectDocs = await Subject.find({ _id: { $in: normalizedSubjects } }, { _id: 1, name: 1 }).lean();
+    if (!subjectDocs.length) {
+      return res.status(400).json({ message: 'Invalid subjects selected.' });
+    }
+
+    const subjectMap = {
+      physics: 'Physics',
+      chemistry: 'Chemistry',
+      biology: 'Biology',
+      mathematics: 'Mathematics',
+      math: 'Mathematics',
+      maths: 'Mathematics',
+    };
+
+    const primarySubjectDoc = subjectDocs.find((s) => subjectMap[String(s.name || '').trim().toLowerCase()]);
+    if (!primarySubjectDoc) {
+      return res.status(400).json({
+        message: 'Auto-email is supported only for Physics, Chemistry, Biology, Mathematics.',
+      });
+    }
+
+    const primarySubjectKey = subjectMap[String(primarySubjectDoc.name).trim().toLowerCase()];
+    const primarySubjectSlug = primarySubjectKey.toLowerCase();
+
+    let counterDoc = await TotalMember.findOne();
+    if (!counterDoc) {
+      counterDoc = await TotalMember.create({
+        Physics: 0,
+        Chemistry: 0,
+        Mathematics: 0,
+        Biology: 0,
+      });
+    }
+
+    const updatedCounter = await TotalMember.findByIdAndUpdate(
+      counterDoc._id,
+      { $inc: { [primarySubjectKey]: 1 } },
+      { new: true }
+    ).lean();
+
+    const subjectCount = Number(updatedCounter?.[primarySubjectKey] || 0);
+    const generatedEmail = `${primarySubjectSlug}.${subjectCount}@garudclasses.com`;
+
+    const tempPassword = normalizedContactMail;
+
+    const user = new User({
+      name: String(name).trim(),
+      email: generatedEmail,
+      contactMail: normalizedContactMail,
+      role: 'teacher',
+      subjects: normalizedSubjects,
+    });
+
+    await User.register(user, tempPassword);
+
+    return res.status(201).json({
+      message: 'Member registered successfully.',
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        contactMail: user.contactMail || null,
+        subjects: user.subjects || [],
+      },
+      generatedFromSubject: primarySubjectKey,
+      temporaryPassword: tempPassword,
+    });
+  } catch (err) {
+    if (err.name === 'UserExistsError') {
+      return res.status(400).json({ message: 'An account with this email already exists.' });
+    }
+    return res.status(500).json({ message: err.message || 'Failed to register member.' });
+  }
+});
+
+router.get('/team', auth, adminOnly, async (req, res, next) => {
+  try {
+    const users = await User.find(
+      { role: { $in: ['teacher', 'admin'] } },
+      { name: 1, email: 1, role: 1, mobile: 1, createdAt: 1 }
+    )
+      .sort({ role: 1, name: 1 })
+      .lean();
+
+    res.json(users);
+  } catch (err) {
+    next(err);
+  }
+});
+
 
 module.exports = router;

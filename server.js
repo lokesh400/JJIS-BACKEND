@@ -10,7 +10,7 @@ const mongoSanitize = require('express-mongo-sanitize');
 const connectDB     = require('./config/db');
 const axios         = require('axios');
 
-const { auth } = require('./middleware/auth');
+const { auth } = require('./middleware/auth')
 
 // Connect to database
 connectDB();

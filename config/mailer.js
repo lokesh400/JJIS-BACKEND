@@ -73,7 +73,35 @@ async function sendPasswordResetOtpEmail({ toEmail, otp, expiresInMinutes = 10 }
   });
 }
 
+async function sendPasswordResetLinkEmail({ toEmail, resetUrl, expiresInMinutes = 10 }) {
+  const safeUrl = String(resetUrl || '').trim();
+  const safeExpiry = Number(expiresInMinutes) > 0 ? Number(expiresInMinutes) : 10;
+
+  const subject = 'Reset your Garud Classes password';
+  const htmlContent = `
+    <div style="font-family:Arial,sans-serif;line-height:1.5;color:#0f172a;max-width:560px;margin:0 auto;padding:16px;">
+      <h2 style="margin:0 0 12px;">Password Reset</h2>
+      <p style="margin:0 0 12px;">Click the button below to reset your password.</p>
+      <p style="margin:16px 0;">
+        <a href="${safeUrl}" style="background:#2563eb;color:#fff;text-decoration:none;padding:10px 16px;border-radius:8px;display:inline-block;">Reset Password</a>
+      </p>
+      <p style="margin:12px 0 0;">This link expires in <strong>${safeExpiry} minutes</strong>.</p>
+      <p style="margin:12px 0 0;color:#475569;">If you did not request this, you can ignore this email.</p>
+    </div>
+  `;
+
+  const textContent = `Reset your password: ${safeUrl}\nThis link expires in ${safeExpiry} minutes.\nIf you did not request this, ignore this email.`;
+
+  return sendTransactionalMail({
+    toEmail,
+    subject,
+    htmlContent,
+    textContent,
+  });
+}
+
 module.exports = {
   sendTransactionalMail,
   sendPasswordResetOtpEmail,
+  sendPasswordResetLinkEmail,
 };

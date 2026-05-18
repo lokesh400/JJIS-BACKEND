@@ -4,7 +4,7 @@ const crypto = require('crypto');
 const rateLimit = require('express-rate-limit');
 const User     = require('../models/User');
 const PasswordResetOtp = require('../models/PasswordResetOtp');
-const { sendPasswordResetOtpEmail } = require('../config/mailer');
+const { sendPasswordResetOtpEmail, sendPasswordResetLinkEmail } = require('../config/mailer');
 const { auth, adminOnly } = require('../middleware/auth');
 const Subject = require('../models/Subject');
 const TotalMember = require('../models/TotalMembers');
@@ -75,7 +75,7 @@ async function findUserByIdentifier(identifier) {
       { email: identifier },
       { username: identifier },
     ],
-  }).select('_id email').lean();
+  }).select('_id email role contactMail username').lean();
 }
 
 async function consumeValidOtpForUser(userId, otp) {
@@ -157,6 +157,48 @@ async function handlePasswordReset(req, res, next) {
   try {
     const rawStep = String(req.body?.step || '').trim().toLowerCase();
     const step = rawStep.replace(/\s+/g, '_').replace(/-/g, '_');
+
+    if (step === 'request_link' || step === 'requestlink' || step === 'send_link') {
+      const identifier = normalizeLoginIdentifier(req.body);
+      if (!identifier) {
+        return res.status(400).json({ message: 'Login identifier is required.' });
+      }
+
+      const user = await findUserByIdentifier(identifier);
+      if (!user) {
+        return res.json({ message: 'If this account exists, a reset link has been sent.' });
+      }
+
+      const now = Math.floor(Date.now() / 1000);
+      const resetToken = signPasswordResetPayload({
+        uid: String(user._id),
+        email: user.email,
+        purpose: 'password_reset',
+        exp: now + PASSWORD_RESET_TOKEN_TTL_SECONDS,
+      });
+      const origin = String(req.get('origin') || '').trim();
+      const baseUrl = origin || `${req.protocol}://${req.get('host')}`;
+      const resetUrl = `${baseUrl}/login?resetToken=${encodeURIComponent(resetToken)}`;
+
+      const recipientEmail = (user.role === 'teacher' || user.role === 'admin')
+        ? String(user.contactMail || '').trim().toLowerCase() || String(user.email || '').trim().toLowerCase()
+        : String(user.email || '').trim().toLowerCase();
+
+      try {
+        await sendPasswordResetLinkEmail({
+          toEmail: recipientEmail,
+          resetUrl,
+          expiresInMinutes: Math.ceil(PASSWORD_RESET_TOKEN_TTL_SECONDS / 60),
+        });
+      } catch (mailError) {
+        console.error(`[FORGOT_PASSWORD_LINK_EMAIL_ERROR] email=${recipientEmail} reason=${mailError.message}`);
+      }
+
+      return res.json({
+        message: 'If this account exists, a reset link has been sent.',
+        expiresInSeconds: PASSWORD_RESET_TOKEN_TTL_SECONDS,
+      });
+    }
 
     if (step === 'request_otp' || step === 'requestotp' || step === 'send_otp') {
       return handlePasswordResetOtpRequest(req, res, next);

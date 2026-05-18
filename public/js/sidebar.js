@@ -32,6 +32,10 @@ const TEACHER_LINKS = [
   { href: '/teacher/tests', label: 'Tests', icon: iconFile() },
 ];
 
+const COORDINATOR_LINKS = [
+  { href: '/coordinator/tests', label: 'Tests', icon: iconFile() },
+];
+
 function buildSidebar() {
   const user = getUser();
   if (!user) return;
@@ -61,6 +65,8 @@ function buildSidebar() {
     ? ADMIN_LINKS
     : user.role === 'teacher'
       ? TEACHER_LINKS
+      : user.role === 'coordinator'
+        ? COORDINATOR_LINKS
       : STUDENT_LINKS;
   const curr  = window.location.pathname;
 

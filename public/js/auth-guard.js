@@ -37,6 +37,8 @@ function requireAuth(role) {
       ? '/admin/dashboard'
       : user.role === 'teacher'
         ? '/teacher/question-bank'
+        : user.role === 'coordinator'
+          ? '/coordinator/tests'
         : '/student/dashboard';
     return null;
   }
@@ -65,6 +67,8 @@ function requireAuthAny(roles) {
       ? '/admin/dashboard'
       : user.role === 'teacher'
         ? '/teacher/question-bank'
+        : user.role === 'coordinator'
+          ? '/coordinator/tests'
         : '/student/dashboard';
     return null;
   }

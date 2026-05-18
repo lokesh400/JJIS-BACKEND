@@ -20,8 +20,8 @@ async function resolveCurrentUser(req) {
 
 async function testManagerOnly(req, res, next) {
   const currentUser = await resolveCurrentUser(req);
-  if (!currentUser || (currentUser.role !== 'admin' && currentUser.role !== 'teacher')) {
-    return res.status(403).json({ message: 'Admin/Teacher access only.' });
+  if (!currentUser || !['admin', 'teacher', 'coordinator'].includes(currentUser.role)) {
+    return res.status(403).json({ message: 'Admin/Teacher/Coordinator access only.' });
   }
   req.currentUser = currentUser;
   next();
@@ -283,10 +283,10 @@ async function downloadAnswerKeySectionwiseHandler(req, res) {
   }
 }
 
-router.get('/admin/:id/download-pdf', auth, adminOnly, downloadPdfHandler);
-router.get('/:id/download-pdf', auth, adminOnly, downloadPdfHandler);
-router.get('/admin/:id/download-answer-key-sectionwise', auth, adminOnly, downloadAnswerKeySectionwiseHandler);
-router.get('/:id/download-answer-key-sectionwise', auth, adminOnly, downloadAnswerKeySectionwiseHandler);
+router.get('/admin/:id/download-pdf', auth, testManagerOnly, downloadPdfHandler);
+router.get('/:id/download-pdf', auth, testManagerOnly, downloadPdfHandler);
+router.get('/admin/:id/download-answer-key-sectionwise', auth, testManagerOnly, downloadAnswerKeySectionwiseHandler);
+router.get('/:id/download-answer-key-sectionwise', auth, testManagerOnly, downloadAnswerKeySectionwiseHandler);
 
 // Get single test (admin - full details)
 router.get('/admin/:id', auth, testManagerOnly, async (req, res) => {

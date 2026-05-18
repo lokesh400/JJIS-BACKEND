@@ -4,7 +4,7 @@
 document.addEventListener('DOMContentLoaded', () => {
   const user = (() => { try { return JSON.parse(sessionStorage.getItem('user') || 'null'); } catch { return null; } })();
   if (user) {
-    window.location.href = user.role === 'admin' ? '/admin/dashboard' : '/student/dashboard';
+    window.location.href = user.role === 'admin' ? '/admin/dashboard' : user.role === 'teacher' ? '/teacher/question-bank' : user.role === 'coordinator' ? '/coordinator/tests' : '/student/dashboard';
     return;
   }
 

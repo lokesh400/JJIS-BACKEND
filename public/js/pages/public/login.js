@@ -2,10 +2,17 @@
  * pages/login.js — Login page logic
  */
 document.addEventListener('DOMContentLoaded', () => {
+  const homeByRole = (role) => role === 'admin'
+    ? '/admin/dashboard'
+    : role === 'teacher'
+      ? '/teacher/question-bank'
+      : role === 'coordinator'
+        ? '/coordinator/tests'
+        : '/student/dashboard';
   // If already logged in, redirect
   const user = (() => { try { return JSON.parse(sessionStorage.getItem('user') || 'null'); } catch { return null; } })();
   if (user) {
-    window.location.href = user.role === 'admin' ? '/admin/dashboard' : '/student/dashboard';
+    window.location.href = homeByRole(user.role);
     return;
   }
 
@@ -35,7 +42,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const data = await API.post('/auth/login', { email, password });
       sessionStorage.setItem('user', JSON.stringify(data.user));
       toast.success('Login successful!');
-      window.location.href = data.user.role === 'admin' ? '/admin/dashboard' : '/student/dashboard';
+      window.location.href = homeByRole(data.user.role);
     } catch (err) {
       toast.error(err.message || 'Login failed');
     } finally {

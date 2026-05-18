@@ -31,7 +31,10 @@ router.get("/admin/tests/:testId/results", (req, res) =>
 router.get("/admin/tests/:testId/answer-key", (req, res) =>
   res.render("admin/test-answer-key", { title: "Section-wise Answer Key" }),
 );
-router.get("/admin/tests/:testId/download-pdf", auth, adminOnly, async (req, res) => {
+router.get("/admin/tests/:testId/download-pdf", auth, async (req, res) => {
+  if (!['admin', 'coordinator'].includes(req.user?.role)) {
+    return res.status(403).render("404", { title: "Access Denied" });
+  }
   try {
     const test = await Test.findById(req.params.testId)
       .populate({

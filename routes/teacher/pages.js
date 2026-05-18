@@ -14,4 +14,8 @@ router.get('/teacher/tests/:testId', (req, res) =>
   res.render('admin/test-creator', { title: 'Test Creator' })
 );
 
+router.get('/coordinator/tests', (req, res) =>
+  res.render('admin/test-list', { title: 'Tests' })
+);
+
 module.exports = router;

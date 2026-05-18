@@ -470,14 +470,18 @@ router.put('/student/profile', auth, async (req, res, next) => {
 
 router.post('/register/member', auth, adminOnly, async (req, res) => {
   try {
-    const { name, contactMail, subjects } = req.body || {};
+    const { name, contactMail, subjects, role } = req.body || {};
+    const targetRole = role === 'coordinator' ? 'coordinator' : 'teacher';
 
-    if (!name || !contactMail || !Array.isArray(subjects) || subjects.length === 0) {
-      return res.status(400).json({ message: 'Name, contactMail and at least one subject are required.' });
+    if (!name || !contactMail) {
+      return res.status(400).json({ message: 'Name and contactMail are required.' });
+    }
+    if (targetRole === 'teacher' && (!Array.isArray(subjects) || subjects.length === 0)) {
+      return res.status(400).json({ message: 'At least one subject is required for teacher.' });
     }
 
     const normalizedContactMail = String(contactMail).trim().toLowerCase();
-    const normalizedSubjects = subjects;
+    const normalizedSubjects = Array.isArray(subjects) ? subjects : [];
 
     const subjectDocs = await Subject.find({ _id: { $in: normalizedSubjects } }, { _id: 1, name: 1 }).lean();
     if (!subjectDocs.length) {
@@ -529,7 +533,7 @@ router.post('/register/member', auth, adminOnly, async (req, res) => {
       username: generatedEmail,
       email: generatedEmail,
       contactMail: normalizedContactMail,
-      role: 'teacher',
+      role: targetRole,
       subjects: normalizedSubjects,
     });
     if (!user.username) user.username = user.email;
@@ -560,7 +564,7 @@ router.post('/register/member', auth, adminOnly, async (req, res) => {
 router.get('/team', auth, adminOnly, async (req, res, next) => {
   try {
     const users = await User.find(
-      { role: { $in: ['teacher', 'admin'] } },
+      { role: { $in: ['teacher', 'coordinator', 'admin'] } },
       { name: 1, email: 1, role: 1, mobile: 1, createdAt: 1 }
     )
       .sort({ role: 1, name: 1 })

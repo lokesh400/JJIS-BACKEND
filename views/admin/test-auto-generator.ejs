@@ -1,0 +1,35 @@
+<%- include('../partials/head', { title: 'Auto Test Generator' }) %>
+<body class="min-h-screen bg-slate-50 text-gray-900">
+<%- include('../partials/navbar') %><%- include('../partials/sidebar') %>
+<div class="md:ml-60 pt-14 min-h-screen p-6 md:p-8 mt-6">
+  <div class="flex items-center justify-between mb-6">
+    <h1 class="text-2xl font-bold">Auto Test Generator</h1>
+    <button onclick="window.location.href='/admin/tests/<%= testId %>'" class="px-4 py-2 rounded-lg bg-gray-100">Back</button>
+  </div>
+  <div class="mb-4 flex justify-end">
+    <button id="generate-all-btn" class="px-4 py-2 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 transition">
+      Generate All Sections
+    </button>
+  </div>
+  <div id="loading" class="flex items-center justify-center py-16"><div class="spinner"></div></div>
+  <div id="sections" class="hidden space-y-4"></div>
+</div>
+
+<div id="rule-modal" class="fixed inset-0 bg-black/40 z-50 hidden items-center justify-center p-4">
+  <div class="bg-white rounded-2xl w-full max-w-lg p-5">
+    <div class="flex items-center justify-between mb-4"><h3 class="font-bold text-lg">Rule Details</h3><button onclick="closeRuleModal()" class="text-xl text-gray-400">&times;</button></div>
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+      <div class="md:col-span-2"><label class="block text-xs text-gray-500 mb-1">Question Type</label><select id="rm-type" class="w-full border rounded-lg p-2"><option value="">All Types</option><option value="mcq">MCQ</option><option value="msq">MSQ</option><option value="numerical">Numerical</option></select></div>
+      <div><label class="block text-xs text-gray-500 mb-1">Hard</label><input id="rm-hard" type="number" min="0" value="0" class="w-full border rounded-lg p-2"/></div>
+      <div><label class="block text-xs text-gray-500 mb-1">Medium</label><input id="rm-medium" type="number" min="0" value="0" class="w-full border rounded-lg p-2"/></div>
+      <div><label class="block text-xs text-gray-500 mb-1">Easy</label><input id="rm-easy" type="number" min="0" value="0" class="w-full border rounded-lg p-2"/></div>
+    </div>
+    <div class="mt-4 flex justify-end gap-2"><button onclick="closeRuleModal()" class="px-3 py-2 bg-gray-100 rounded-lg">Cancel</button><button onclick="saveRuleModal()" class="px-3 py-2 bg-emerald-600 text-white rounded-lg">Save Rule</button></div>
+  </div>
+</div>
+
+<%- include('../partials/toast') %>
+<script>window.__TEST_ID__='<%= testId %>';</script>
+<script src="/js/api.js"></script><script src="/js/toast.js"></script><script src="/js/auth-guard.js"></script><script src="/js/sidebar.js"></script>
+<script src="/js/pages/admin/test-auto-generator.js"></script>
+</body></html>

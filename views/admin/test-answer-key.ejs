@@ -1,0 +1,39 @@
+<%- include('../partials/head', { title: 'Section-wise Answer Key' }) %>
+<body class="min-h-screen bg-slate-50 text-gray-900">
+  <%- include('../partials/navbar') %>
+  <%- include('../partials/sidebar') %>
+
+  <div class="md:ml-60 pt-14 min-h-screen page-body">
+    <div class="page-header px-6 md:px-8 py-7 fade-up">
+      <p class="text-white/50 text-xs font-semibold uppercase tracking-widest mb-1">Admin Panel</p>
+      <div class="flex items-center gap-3">
+        <button onclick="window.location.href='/admin/tests'"
+                class="p-2 text-white/70 hover:text-white hover:bg-white/10 rounded-lg transition">&larr;</button>
+        <div>
+          <h1 class="text-2xl md:text-3xl font-bold text-white">Section-wise Answer Key</h1>
+          <p id="test-name" class="text-white/60 text-sm mt-0.5"></p>
+        </div>
+      </div>
+    </div>
+
+    <div class="p-6 md:p-8">
+      <div class="flex justify-end mb-4">
+        <button id="download-answer-key-btn"
+                class="px-4 py-2 text-sm bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition">
+          Download PDF
+        </button>
+      </div>
+
+      <div id="loading" class="flex items-center justify-center py-16"><div class="spinner"></div></div>
+      <div id="answer-key-sections" class="hidden space-y-5"></div>
+    </div>
+  </div>
+
+  <%- include('../partials/toast') %>
+  <script src="/js/api.js"></script>
+  <script src="/js/toast.js"></script>
+  <script src="/js/auth-guard.js"></script>
+  <script src="/js/sidebar.js"></script>
+  <script src="/js/pages/admin/test-answer-key.js"></script>
+</body>
+</html>

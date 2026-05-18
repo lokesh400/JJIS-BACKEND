@@ -203,8 +203,90 @@ async function downloadPdfHandler(req, res) {
   }
 }
 
+async function downloadAnswerKeySectionwiseHandler(req, res) {
+  try {
+    const test = await Test.findById(req.params.id)
+      .populate({
+        path: 'sections.questions.question',
+        select: 'type correctOption correctOptions correctNumericalAnswer',
+      })
+      .lean();
+
+    if (!test) return res.status(404).json({ message: 'Test not found' });
+
+    const fileName = `${(test.name || 'test').replace(/[^a-z0-9_-]/gi, '_')}_sectionwise_answer_key.pdf`;
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
+
+    const doc = new PDFDocument({ margin: 36, size: 'A4' });
+    doc.pipe(res);
+
+    const contentW = doc.page.width - doc.page.margins.left - doc.page.margins.right;
+    const left = doc.page.margins.left;
+
+    doc.font('Helvetica-Bold').fontSize(18).text(test.name || 'Test', left, 36, { width: contentW, align: 'center' });
+    doc.moveDown(0.8);
+    doc.font('Helvetica').fontSize(12).text('Section-wise Answer Key', { align: 'center' });
+    doc.moveDown(1.1);
+
+    (test.sections || []).forEach((section, sectionIndex) => {
+      if (sectionIndex > 0) doc.addPage();
+      doc.font('Helvetica-Bold').fontSize(14).text(`Section ${sectionIndex + 1}: ${section.name || 'Untitled Section'}`);
+      doc.moveDown(0.6);
+
+      const rows = (section.questions || []).map((entry, index) => {
+        const q = entry.question || {};
+        let answer = '-';
+
+        if (q.type === 'mcq') answer = q.correctOption || '-';
+        else if (q.type === 'msq') answer = Array.isArray(q.correctOptions) && q.correctOptions.length ? q.correctOptions.join(', ') : '-';
+        else if (q.type === 'numerical') {
+          answer = q.correctNumericalAnswer === null || q.correctNumericalAnswer === undefined
+            ? '-'
+            : String(q.correctNumericalAnswer);
+        }
+
+        return {
+          qNo: `Q${index + 1}`,
+          type: (q.type || '-').toUpperCase(),
+          answer,
+        };
+      });
+
+      if (!rows.length) {
+        doc.font('Helvetica').fontSize(11).fillColor('#6b7280').text('No questions in this section').fillColor('#000000');
+        return;
+      }
+
+      doc.font('Helvetica-Bold').fontSize(11).text('Question', left, doc.y, { width: 120 });
+      doc.text('Type', left + 130, doc.y - 11, { width: 100 });
+      doc.text('Answer', left + 240, doc.y - 11, { width: contentW - 240 });
+      doc.moveDown(0.2);
+      doc.moveTo(left, doc.y).lineTo(left + contentW, doc.y).strokeColor('#d1d5db').stroke();
+      doc.moveDown(0.5);
+
+      rows.forEach((row) => {
+        const y = doc.y;
+        if (y > doc.page.height - 60) {
+          doc.addPage();
+        }
+        doc.font('Helvetica').fontSize(11).fillColor('#111827').text(row.qNo, left, doc.y, { width: 120 });
+        doc.text(row.type, left + 130, y, { width: 100 });
+        doc.text(row.answer, left + 240, y, { width: contentW - 240 });
+        doc.moveDown(0.45);
+      });
+    });
+
+    doc.end();
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+}
+
 router.get('/admin/:id/download-pdf', auth, adminOnly, downloadPdfHandler);
 router.get('/:id/download-pdf', auth, adminOnly, downloadPdfHandler);
+router.get('/admin/:id/download-answer-key-sectionwise', auth, adminOnly, downloadAnswerKeySectionwiseHandler);
+router.get('/:id/download-answer-key-sectionwise', auth, adminOnly, downloadAnswerKeySectionwiseHandler);
 
 // Get single test (admin - full details)
 router.get('/admin/:id', auth, testManagerOnly, async (req, res) => {
@@ -334,6 +416,172 @@ router.post('/:testId/sections/:sectionId/questions', auth, testManagerOnly, asy
       ],
     });
     res.json(populated);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// Auto-generate questions for a section with difficulty fallback:
+// requested hard -> medium -> easy -> unassigned
+router.post('/:testId/sections/:sectionId/auto-generate', auth, testManagerOnly, async (req, res) => {
+  try {
+    const {
+      subjectId,
+      chapterId,
+      subjectIds,
+      topicIds,
+      questionType,
+      hardCount = 0,
+      mediumCount = 0,
+      easyCount = 0,
+      positiveMarks,
+      negativeMarks,
+    } = req.body || {};
+
+    const normalizedSubjectIds = Array.isArray(subjectIds) ? subjectIds.filter(Boolean).map(String) : [];
+    const normalizedTopicIds = Array.isArray(topicIds) ? topicIds.filter(Boolean).map(String) : [];
+    const singleSubjectId = subjectId ? String(subjectId) : null;
+    if (!singleSubjectId && normalizedSubjectIds.length === 0) {
+      return res.status(400).json({ message: 'At least one subject is required.' });
+    }
+
+    const allowedTypes = new Set(['mcq', 'msq', 'numerical']);
+    if (questionType && !allowedTypes.has(questionType)) {
+      return res.status(400).json({ message: 'Invalid question type.' });
+    }
+
+    const requested = {
+      hard: Math.max(0, parseInt(hardCount, 10) || 0),
+      medium: Math.max(0, parseInt(mediumCount, 10) || 0),
+      easy: Math.max(0, parseInt(easyCount, 10) || 0),
+    };
+    const requestedTotal = requested.hard + requested.medium + requested.easy;
+    if (requestedTotal <= 0) {
+      return res.status(400).json({ message: 'At least one question is required.' });
+    }
+
+    const teacherSubjectId = getTeacherSubjectId(req.currentUser);
+    const effectiveSubjectIds = normalizedSubjectIds.length ? normalizedSubjectIds : (singleSubjectId ? [singleSubjectId] : []);
+    if (teacherSubjectId && effectiveSubjectIds.some((sid) => sid !== teacherSubjectId)) {
+      return res.status(403).json({ message: 'You can only auto-generate from your assigned subject.' });
+    }
+
+    const test = await Test.findById(req.params.testId);
+    if (!test) return res.status(404).json({ message: 'Test not found' });
+    const section = test.sections.id(req.params.sectionId);
+    if (!section) return res.status(404).json({ message: 'Section not found' });
+
+    const alreadyInTest = new Set(
+      (test.sections || []).flatMap((s) => (s.questions || []).map((q) => String(q.question)))
+    );
+
+    const pickedIds = new Set();
+    const picked = [];
+    const baseFilter = {};
+    if (effectiveSubjectIds.length === 1) baseFilter.subject = effectiveSubjectIds[0];
+    else baseFilter.subject = { $in: effectiveSubjectIds };
+    if (chapterId) baseFilter.chapter = chapterId;
+    if (normalizedTopicIds.length) baseFilter.topic = { $in: normalizedTopicIds };
+    if (questionType) baseFilter.type = questionType;
+
+    async function pickFromDifficulty(difficulty, limit) {
+      if (limit <= 0) return 0;
+      const list = await Question.find({ ...baseFilter, difficulty })
+        .select('_id')
+        .lean();
+      let added = 0;
+      for (const q of list) {
+        const qid = String(q._id);
+        if (alreadyInTest.has(qid) || pickedIds.has(qid)) continue;
+        pickedIds.add(qid);
+        picked.push(qid);
+        added += 1;
+        if (added >= limit) break;
+      }
+      return added;
+    }
+
+    async function fulfillWithFallback(startDifficulty, countNeeded) {
+      const orderMap = {
+        hard: ['hard', 'medium', 'easy', 'unassigned'],
+        medium: ['medium', 'easy', 'unassigned'],
+        easy: ['easy', 'unassigned'],
+      };
+      const order = orderMap[startDifficulty] || [];
+      let remaining = countNeeded;
+      for (const level of order) {
+        if (remaining <= 0) break;
+        const got = await pickFromDifficulty(level, remaining);
+        remaining -= got;
+      }
+      return countNeeded - remaining;
+    }
+
+    async function fillRandomRemaining(limit) {
+      if (limit <= 0) return 0;
+      const list = await Question.find(baseFilter).select('_id').lean();
+      const shuffled = list.sort(() => Math.random() - 0.5);
+      let added = 0;
+      for (const q of shuffled) {
+        const qid = String(q._id);
+        if (alreadyInTest.has(qid) || pickedIds.has(qid)) continue;
+        pickedIds.add(qid);
+        picked.push(qid);
+        added += 1;
+        if (added >= limit) break;
+      }
+      return added;
+    }
+
+    let hardPicked = await fulfillWithFallback('hard', requested.hard);
+    let mediumPicked = await fulfillWithFallback('medium', requested.medium);
+    let easyPicked = await fulfillWithFallback('easy', requested.easy);
+
+    if (hardPicked < requested.hard) {
+      hardPicked += await fillRandomRemaining(requested.hard - hardPicked);
+    }
+    if (mediumPicked < requested.medium) {
+      mediumPicked += await fillRandomRemaining(requested.medium - mediumPicked);
+    }
+    if (easyPicked < requested.easy) {
+      easyPicked += await fillRandomRemaining(requested.easy - easyPicked);
+    }
+
+    if (!picked.length) {
+      return res.status(400).json({ message: 'No matching questions available for selected criteria.' });
+    }
+
+    const pm = positiveMarks || 4;
+    const nm = negativeMarks || 1;
+    picked.forEach((qid) => {
+      section.questions.push({ question: qid, positiveMarks: pm, negativeMarks: nm });
+    });
+    await test.save();
+
+    const populated = await Test.findById(test._id).populate({
+      path: 'sections.questions.question',
+      populate: [
+        { path: 'subject', select: 'name' },
+        { path: 'chapter', select: 'name' },
+        { path: 'topic', select: 'name' },
+      ],
+    });
+
+    const totalMissing = requestedTotal - picked.length;
+    const teacherFiltered = teacherSubjectId ? filterTestBySubjectForTeacher(populated, teacherSubjectId) : populated;
+    return res.json({
+      test: teacherFiltered,
+      summary: {
+        requested,
+        added: {
+          hard: hardPicked,
+          medium: mediumPicked,
+          easy: easyPicked,
+          total: picked.length,
+        },
+        missing: totalMissing > 0 ? totalMissing : 0,
+      },
+    });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }

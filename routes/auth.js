@@ -370,7 +370,6 @@ router.post('/register', authLimiter, async (req, res, next) => {
 
 // ── Login ─────────────────────────────────────────────────────────
 router.post('/login', authLimiter, (req, res, next) => {
-  console.log('Login attempt:', req.body.email);
   passport.authenticate('local', (err, user, info) => {
     if (err) return next(err);
     if (!user) {

@@ -19,11 +19,17 @@ router.get("/admin/tests", (req, res) =>
 router.get("/admin/tests/:testId", (req, res) =>
   res.render("admin/test-creator", { title: "Test Creator" }),
 );
+router.get("/admin/tests/:testId/auto-generator", (req, res) =>
+  res.render("admin/test-auto-generator", { title: "Auto Test Generator", testId: req.params.testId }),
+);
 router.get("/admin/jee-advanced-tests/:testId", (req, res) =>
   res.render("admin/jee-advanced-creator", { title: "JEE Advanced Creator" }),
 );
 router.get("/admin/tests/:testId/results", (req, res) =>
   res.render("admin/test-results", { title: "Test Results" }),
+);
+router.get("/admin/tests/:testId/answer-key", (req, res) =>
+  res.render("admin/test-answer-key", { title: "Section-wise Answer Key" }),
 );
 router.get("/admin/tests/:testId/download-pdf", auth, adminOnly, async (req, res) => {
   try {

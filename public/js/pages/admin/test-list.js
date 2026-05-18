@@ -45,6 +45,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       const modeLabel  = t.mode === 'practice' ? '🔁 Practice' : '🎯 Real';
       const modeColor  = t.mode === 'practice' ? 'bg-blue-100 text-blue-700' : 'bg-purple-100 text-purple-700';
       const isJee      = t.testType === 'jee-advanced';
+      const canManageAdminActions = user.role === 'admin';
       const schedLabel = t.scheduledAt
         ? `📅 ${new Date(t.scheduledAt).toLocaleString()}`
         : '📅 No schedule';
@@ -75,12 +76,15 @@ document.addEventListener('DOMContentLoaded', async () => {
         <div class="mt-4 pt-4 border-t border-gray-100 flex flex-wrap gap-2">
           <button onclick="window.location.href='${editHref}'"
                   class="px-3 py-2 text-sm bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition">Edit</button>
+          ${canManageAdminActions ? `
           <button onclick="window.location.href='/admin/tests/${t._id}/download-pdf'"
                   class="px-3 py-2 text-sm bg-indigo-50 text-indigo-700 rounded-lg hover:bg-indigo-100 transition">PDF</button>
           <button onclick="window.location.href='/admin/tests/${t._id}/answer-key'"
                   class="px-3 py-2 text-sm bg-emerald-50 text-emerald-700 rounded-lg hover:bg-emerald-100 transition">Answer Key</button>
+          ` : ''}
           <button onclick="window.location.href='/admin/tests/${t._id}/auto-generator'"
                   class="px-3 py-2 text-sm bg-teal-50 text-teal-700 rounded-lg hover:bg-teal-100 transition">Auto Generator</button>
+          ${canManageAdminActions ? `
           <button onclick="window.location.href='/admin/tests/${t._id}/results'"
                   class="px-3 py-2 text-sm bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100 transition">Results</button>
           <button onclick="togglePublish('${t._id}', ${t.isPublished})"
@@ -89,6 +93,7 @@ document.addEventListener('DOMContentLoaded', async () => {
           </button>
           <button onclick="deleteTest('${t._id}')"
                   class="px-3 py-2 text-sm bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition">Delete</button>
+          ` : ''}
         </div>
       </div>`;
     }).join('');

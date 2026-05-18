@@ -340,6 +340,7 @@ router.post('/register', authLimiter, async (req, res, next) => {
 
     const user = new User({
       name:       name.trim(),
+      username:   email.trim().toLowerCase(),
       email:      email.trim().toLowerCase(),
       role:       role === 'admin' ? 'admin' : 'student',
       class:      studentClass,
@@ -347,6 +348,7 @@ router.post('/register', authLimiter, async (req, res, next) => {
       mobile,
       address,
     });
+    if (!user.username) user.username = user.email;
 
     // User.register hashes password with PBKDF2-SHA512 and saves the user
     await User.register(user, password);
@@ -531,6 +533,7 @@ router.post('/register/member', auth, adminOnly, async (req, res) => {
       role: 'teacher',
       subjects: normalizedSubjects,
     });
+    if (!user.username) user.username = user.email;
 
     await User.register(user, tempPassword);
 

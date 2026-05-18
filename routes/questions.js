@@ -60,14 +60,30 @@ router.get('/teacher/topics/:chapterId', auth, teacherOnly, async (req, res) => 
 router.get('/teacher', auth, teacherOnly, async (req, res) => {
   try {
     const subjectId = await getTeacherSubjectId(req);
+    const { chapter, topic } = req.query;
+    const page = Math.max(parseInt(req.query.page, 10) || 1, 1);
+    const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 10, 1), 50);
+
     const filter = subjectId ? { subject: subjectId } : {};
+    if (chapter) filter.chapter = chapter;
+    if (topic) filter.topic = topic;
+
+    const total = await Question.countDocuments(filter);
     const questions = await Question.find(filter)
       .populate('subject', 'name')
       .populate('chapter', 'name subject')
       .populate('topic', 'name chapter')
-      .sort({ createdAt: -1 });
+      .sort({ createdAt: -1 })
+      .skip((page - 1) * limit)
+      .limit(limit);
 
-    res.json(questions);
+    res.json({
+      items: questions,
+      page,
+      limit,
+      total,
+      hasMore: page * limit < total,
+    });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -97,6 +113,36 @@ router.patch('/teacher/:id/topic', auth, teacherOnly, async (req, res) => {
 
     question.topic = newTopic._id;
     question.chapter = newTopic.chapter._id;
+    await question.save();
+
+    const updated = await Question.findById(question._id)
+      .populate('subject', 'name')
+      .populate('chapter', 'name subject')
+      .populate('topic', 'name chapter');
+
+    res.json(updated);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+router.patch('/teacher/:id/difficulty', auth, teacherOnly, async (req, res) => {
+  try {
+    const subjectId = await getTeacherSubjectId(req);
+    const { difficulty } = req.body || {};
+    const allowed = new Set(['unassigned', 'easy', 'medium', 'hard']);
+
+    if (!allowed.has(difficulty)) {
+      return res.status(400).json({ message: 'Difficulty must be one of unassigned, easy, medium, hard.' });
+    }
+
+    const questionFilter = subjectId
+      ? { _id: req.params.id, subject: subjectId }
+      : { _id: req.params.id };
+    const question = await Question.findOne(questionFilter);
+    if (!question) return res.status(404).json({ message: 'Question not found.' });
+
+    question.difficulty = difficulty;
     await question.save();
 
     const updated = await Question.findById(question._id)

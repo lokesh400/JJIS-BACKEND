@@ -29,6 +29,7 @@ const STUDENT_LINKS = [
 
 const TEACHER_LINKS = [
   { href: '/teacher/question-bank', label: 'Edit Question', icon: iconDB() },
+  { href: '/teacher/tests', label: 'Tests', icon: iconFile() },
 ];
 
 function buildSidebar() {

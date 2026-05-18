@@ -10,20 +10,38 @@
       <p class="text-white/60 text-sm mt-1">Filter questions by chapter/topic and correct wrong topic mapping.</p>
     </div>
 
-    <div class="p-6 md:p-8">
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-3 mb-5">
-        <select id="chapter-filter" class="px-3 py-2 border border-gray-300 rounded-lg">
-          <option value="">All Chapters</option>
-        </select>
-        <select id="topic-filter" class="px-3 py-2 border border-gray-300 rounded-lg">
-          <option value="">All Topics</option>
-        </select>
-        <button id="refresh-btn" class="px-4 py-2 border border-gray-200 rounded-xl text-sm text-gray-600 hover:bg-gray-50 transition">Refresh</button>
+    <div class="p-4 sm:p-6 md:p-8">
+      <div class="bg-white border border-slate-200 rounded-2xl shadow-sm p-4 sm:p-5 mb-6">
+        <div class="flex items-center justify-between gap-3 mb-4">
+          <h2 class="text-base sm:text-lg font-semibold text-slate-800">Question Filters</h2>
+          <span class="text-xs text-slate-400 hidden sm:inline">Choose chapter and topic to load questions</span>
+        </div>
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          <div class="sm:col-span-1">
+            <label class="block text-xs font-medium text-slate-500 mb-1">Chapter</label>
+            <select id="chapter-filter" class="w-full px-3 py-2.5 border border-slate-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-400">
+              <option value="">Select Chapter</option>
+            </select>
+          </div>
+          <div class="sm:col-span-1">
+            <label class="block text-xs font-medium text-slate-500 mb-1">Topic</label>
+            <select id="topic-filter" class="w-full px-3 py-2.5 border border-slate-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-400">
+              <option value="">Select Topic</option>
+            </select>
+          </div>
+          <div class="sm:col-span-2 lg:col-span-2 flex items-end">
+            <button id="refresh-btn" class="w-full sm:w-auto px-5 py-2.5 rounded-xl text-sm font-medium text-slate-700 border border-slate-300 hover:bg-slate-50 transition">Refresh</button>
+          </div>
+        </div>
       </div>
 
-      <div id="loading" class="text-center py-16 text-gray-400 text-sm">Loading questions...</div>
-      <div id="empty" class="hidden text-center py-16 text-gray-500 text-sm">No questions found for selected filters.</div>
+      <div id="hint" class="text-center py-12 sm:py-16 text-slate-500 text-sm bg-white border border-dashed border-slate-300 rounded-2xl">Select both chapter and topic to view questions.</div>
+      <div id="loading" class="hidden text-center py-12 sm:py-16 text-slate-400 text-sm bg-white border border-slate-200 rounded-2xl">Loading questions...</div>
+      <div id="empty" class="hidden text-center py-12 sm:py-16 text-slate-500 text-sm bg-white border border-slate-200 rounded-2xl">No questions found for selected filters.</div>
       <div id="list" class="space-y-4"></div>
+      <div class="mt-5 text-center">
+        <button id="load-more-btn" class="hidden px-6 py-3 rounded-xl text-sm font-semibold text-white bg-blue-600 shadow-md shadow-blue-200 hover:bg-blue-700 hover:shadow-lg hover:shadow-blue-300 transition">Load Next 10</button>
+      </div>
     </div>
   </div>
 

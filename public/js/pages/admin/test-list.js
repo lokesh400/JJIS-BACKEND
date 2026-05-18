@@ -2,8 +2,9 @@
  * pages/test-list.js
  */
 document.addEventListener('DOMContentLoaded', async () => {
-  const user = requireAuth('admin');
+  const user = requireAuthAny(['admin', 'teacher']);
   if (!user) return;
+  const basePath = user.role === 'teacher' ? '/teacher/tests' : '/admin/tests';
   const TIME_24H_REGEX = /^([01]\d|2[0-3]):([0-5]\d)$/;
 
   function normalizeTimeValue(rawValue) {
@@ -47,9 +48,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       const schedLabel = t.scheduledAt
         ? `📅 ${new Date(t.scheduledAt).toLocaleString()}`
         : '📅 No schedule';
-      const editHref   = isJee
-        ? `/admin/jee-advanced-tests/${t._id}`
-        : `/admin/tests/${t._id}`;
+      const editHref = `${basePath}/${t._id}`;
       return `
       <div class="bg-white rounded-xl shadow-md p-5 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
@@ -150,9 +149,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       });
       toast.success('Test created!');
       // JEE Advanced → open in JEE creator; standard → standard creator
-      const redirect = testType === 'jee-advanced'
-        ? `/admin/jee-advanced-tests/${test._id}`
-        : `/admin/tests/${test._id}`;
+      const redirect = `${basePath}/${test._id}`;
       window.location.href = redirect;
     } catch (err) { toast.error(err.message || 'Failed to create test'); }
   });

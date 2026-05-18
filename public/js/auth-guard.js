@@ -54,6 +54,33 @@ function requireAuth(role) {
   return user;
 }
 
+function requireAuthAny(roles) {
+  const user = getUser();
+  if (!user) {
+    window.location.href = '/login';
+    return null;
+  }
+  if (Array.isArray(roles) && roles.length && !roles.includes(user.role)) {
+    window.location.href = user.role === 'admin'
+      ? '/admin/dashboard'
+      : user.role === 'teacher'
+        ? '/teacher/question-bank'
+        : '/student/dashboard';
+    return null;
+  }
+
+  fetch('/api/auth/me', { credentials: 'include' })
+    .then(res => {
+      if (res.status === 401) {
+        sessionStorage.removeItem('user');
+        window.location.href = '/login';
+      }
+    })
+    .catch(() => {});
+
+  return user;
+}
+
 /**
  * handleLogout — calls server to destroy session, then clears local cache.
  */

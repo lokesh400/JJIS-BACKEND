@@ -66,6 +66,11 @@ const questionSchema = new mongoose.Schema({
     ref: 'Topic',
     required: true,
   },
+  difficulty: {
+    type: String,
+    enum: ['unassigned', 'easy', 'medium', 'hard'],
+    default: 'unassigned',
+  },
 }, { timestamps: true });
 
 module.exports = mongoose.model('Question', questionSchema);

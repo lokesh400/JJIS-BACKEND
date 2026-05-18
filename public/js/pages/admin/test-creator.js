@@ -2,28 +2,34 @@
  * pages/test-creator.js
  */
 document.addEventListener('DOMContentLoaded', async () => {
-  const user = requireAuth('admin');
+  const user = requireAuthAny(['admin', 'teacher']);
   if (!user) return;
 
   const testId = window.location.pathname.split('/')[3]; // /admin/tests/:testId
+  const subjectWrapEl = document.getElementById('f-subject-wrap');
   let test = null;
   let allQuestions = [];
   let allSubjects  = [];
   let allChapters  = [];
   let allTopics    = [];
   let activeSectionId = null;
+  let teacherSubjectId = null;
 
   // ── Load data ─────────────────────────────────────────────────────
   async function fetchAll() {
     try {
-      const [t, s] = await Promise.all([
+      const [testPayload, s] = await Promise.all([
         API.get(`/tests/admin/${testId}`),
         API.get('/subjects'),
       ]);
-      test = t;
+      test = testPayload?.test || testPayload;
+      teacherSubjectId = testPayload?.teacherSubjectId || null;
       allSubjects = s;
       renderTest();
       populateSubjectFilter();
+      if (teacherSubjectId) {
+        await loadChaptersForSubject(teacherSubjectId);
+      }
       populateSettings();
     } catch {
       toast.error('Failed to load test');
@@ -48,7 +54,9 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // Require subject, chapter, and topic before hitting the server
     if (!subject || !chapter || !topic) {
-      showPickerPlaceholder('Please select a Subject, Chapter, and Topic to load questions.');
+      showPickerPlaceholder(teacherSubjectId
+        ? 'Please select Chapter and Topic to load questions.'
+        : 'Please select a Subject, Chapter, and Topic to load questions.');
       return;
     }
 
@@ -116,9 +124,19 @@ document.addEventListener('DOMContentLoaded', async () => {
               <button onclick="removeQuestion('${s._id}', '${q._id}')"
                       class="absolute top-1 right-1 bg-red-500 text-white rounded-full w-5 h-5 text-xs flex items-center justify-center opacity-0 group-hover:opacity-100 transition">✕</button>
             </div>`).join('')}
+          ${s._hiddenCount ? `<p class="col-span-full text-sm text-amber-600 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">${s._hiddenCount} question(s) hidden due to subject restriction.</p>` : ''}
           ${!s.questions.length ? '<p class="col-span-full text-sm text-gray-400">No questions in this section.</p>' : ''}
         </div>
       </div>`).join('');
+  }
+
+  async function loadChaptersForSubject(subjectId) {
+    document.getElementById('f-chapter').innerHTML = '<option value="">All Chapters</option>';
+    document.getElementById('f-topic').innerHTML   = '<option value="">All Topics</option>';
+    if (!subjectId) return;
+    allChapters = await API.get(`/chapters/subject/${subjectId}`);
+    document.getElementById('f-chapter').innerHTML = '<option value="">All Chapters</option>' +
+      allChapters.map(c => `<option value="${c._id}">${c.name}</option>`).join('');
   }
 
   function renderQuestionGrid() {
@@ -225,12 +243,17 @@ document.addEventListener('DOMContentLoaded', async () => {
   window.openPicker = function(sectionId) {
     activeSectionId = sectionId;
     // Reset all filter dropdowns
-    document.getElementById('f-subject').value = '';
+    document.getElementById('f-subject').value = teacherSubjectId || '';
     document.getElementById('f-chapter').innerHTML = '<option value="">All Chapters</option>';
     document.getElementById('f-topic').innerHTML   = '<option value="">All Topics</option>';
     document.getElementById('f-type').value = '';
     document.getElementById('picker-modal').classList.remove('hidden');
-    showPickerPlaceholder('Please select a Subject, Chapter, and Topic to load questions.');
+    showPickerPlaceholder(teacherSubjectId
+      ? 'Select Chapter and Topic to load your subject questions.'
+      : 'Please select a Subject, Chapter, and Topic to load questions.');
+    if (teacherSubjectId) {
+      document.getElementById('f-subject').dispatchEvent(new Event('change'));
+    }
   };
 
   window.closePicker = function() {
@@ -264,19 +287,23 @@ document.addEventListener('DOMContentLoaded', async () => {
   // ── Filter handlers ───────────────────────────────────────────────
   function populateSubjectFilter() {
     const sel = document.getElementById('f-subject');
+    const visibleSubjects = teacherSubjectId
+      ? allSubjects.filter((s) => String(s._id) === teacherSubjectId)
+      : allSubjects;
     sel.innerHTML = '<option value="">All Subjects</option>' +
-      allSubjects.map(s => `<option value="${s._id}">${s.name}</option>`).join('');
+      visibleSubjects.map(s => `<option value="${s._id}">${s.name}</option>`).join('');
+    if (teacherSubjectId) {
+      sel.value = teacherSubjectId;
+      sel.disabled = true;
+      if (subjectWrapEl) subjectWrapEl.classList.add('hidden');
+    } else if (subjectWrapEl) {
+      subjectWrapEl.classList.remove('hidden');
+    }
   }
 
   document.getElementById('f-subject').addEventListener('change', async (e) => {
     const subjectId = e.target.value;
-    document.getElementById('f-chapter').innerHTML = '<option value="">All Chapters</option>';
-    document.getElementById('f-topic').innerHTML   = '<option value="">All Topics</option>';
-    if (subjectId) {
-      allChapters = await API.get(`/chapters/subject/${subjectId}`);
-      document.getElementById('f-chapter').innerHTML = '<option value="">All Chapters</option>' +
-        allChapters.map(c => `<option value="${c._id}">${c.name}</option>`).join('');
-    }
+    await loadChaptersForSubject(subjectId);
     fetchQuestions();
   });
 

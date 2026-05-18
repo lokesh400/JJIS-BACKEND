@@ -7,25 +7,78 @@ const Question = require('../models/Question');
 const PDFDocument = require('pdfkit');
 const axios = require('axios');
 const { auth, adminOnly } = require('../middleware/auth');
+const User = require('../models/User');
 
 const router = express.Router();
+
+async function resolveCurrentUser(req) {
+  if (req.user && req.user._id) return req.user;
+  const sessionUserId = req.session?.passport?.user;
+  if (!sessionUserId) return null;
+  return User.findById(sessionUserId).lean();
+}
+
+async function testManagerOnly(req, res, next) {
+  const currentUser = await resolveCurrentUser(req);
+  if (!currentUser || (currentUser.role !== 'admin' && currentUser.role !== 'teacher')) {
+    return res.status(403).json({ message: 'Admin/Teacher access only.' });
+  }
+  req.currentUser = currentUser;
+  next();
+}
+
+function getTeacherSubjectId(currentUser) {
+  if (!currentUser || currentUser.role === 'admin') return null;
+  const firstSubject = Array.isArray(currentUser.subjects) ? currentUser.subjects[0] : null;
+  if (!firstSubject) return null;
+  if (typeof firstSubject === 'object' && firstSubject._id) return String(firstSubject._id);
+  return String(firstSubject);
+}
+
+function filterTestBySubjectForTeacher(testDoc, subjectId) {
+  if (!subjectId || !testDoc?.sections) return testDoc;
+  const data = testDoc.toObject ? testDoc.toObject() : testDoc;
+  data.sections = (data.sections || []).map((section) => ({
+    ...section,
+    questions: (section.questions || []).filter((entry) => {
+      const qSubject = entry?.question?.subject;
+      if (!qSubject) return false;
+      const sid = typeof qSubject === 'object' ? String(qSubject._id || qSubject) : String(qSubject);
+      return sid === subjectId;
+    }),
+    _hiddenCount: (section.questions || []).reduce((count, entry) => {
+      const qSubject = entry?.question?.subject;
+      if (!qSubject) return count + 1;
+      const sid = typeof qSubject === 'object' ? String(qSubject._id || qSubject) : String(qSubject);
+      return sid === subjectId ? count : count + 1;
+    }, 0),
+  }));
+  return data;
+}
 
 // ==================== ADMIN ROUTES ====================
 
 // Get all tests (admin)
-router.get('/admin/all', auth, adminOnly, async (req, res) => {
+router.get('/admin/all', auth, testManagerOnly, async (req, res) => {
   try {
+    const teacherSubjectId = getTeacherSubjectId(req.currentUser);
     const tests = await Test.find()
       .populate('createdBy', 'name')
+      .populate({
+        path: 'sections.questions.question',
+        select: 'subject',
+      })
       .sort({ createdAt: -1 });
-    res.json(tests);
+    if (!teacherSubjectId) return res.json(tests);
+    const filtered = tests.map((t) => filterTestBySubjectForTeacher(t, teacherSubjectId));
+    res.json(filtered);
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
 });
 
 // Create test (admin only)
-router.post('/', auth, adminOnly, async (req, res) => {
+router.post('/', auth, testManagerOnly, async (req, res) => {
   try {
     const { name, description, duration, sections, scheduledAt, mode, syllabus, testType } = req.body;
     const test = new Test({
@@ -154,7 +207,7 @@ router.get('/admin/:id/download-pdf', auth, adminOnly, downloadPdfHandler);
 router.get('/:id/download-pdf', auth, adminOnly, downloadPdfHandler);
 
 // Get single test (admin - full details)
-router.get('/admin/:id', auth, adminOnly, async (req, res) => {
+router.get('/admin/:id', auth, testManagerOnly, async (req, res) => {
   try {
     const test = await Test.findById(req.params.id)
       .populate({
@@ -168,14 +221,16 @@ router.get('/admin/:id', auth, adminOnly, async (req, res) => {
       .populate('createdBy', 'name');
 
     if (!test) return res.status(404).json({ message: 'Test not found' });
-    res.json(test);
+    const teacherSubjectId = getTeacherSubjectId(req.currentUser);
+    if (!teacherSubjectId) return res.json({ test, teacherSubjectId: null });
+    res.json({ test: filterTestBySubjectForTeacher(test, teacherSubjectId), teacherSubjectId });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
 });
 
 // Update test (admin)
-router.put('/:id', auth, adminOnly, async (req, res) => {
+router.put('/:id', auth, testManagerOnly, async (req, res) => {
   try {
     const { name, description, duration, isPublished, scheduledAt, mode, syllabus, testType } = req.body;
     const updateFields = { name, description, duration, isPublished };
@@ -209,7 +264,7 @@ router.delete('/:id', auth, adminOnly, async (req, res) => {
 });
 
 // Add section to test
-router.post('/:id/sections', auth, adminOnly, async (req, res) => {
+router.post('/:id/sections', auth, testManagerOnly, async (req, res) => {
   try {
     const test = await Test.findById(req.params.id);
     if (!test) return res.status(404).json({ message: 'Test not found' });
@@ -223,7 +278,7 @@ router.post('/:id/sections', auth, adminOnly, async (req, res) => {
 });
 
 // Remove section from test
-router.delete('/:testId/sections/:sectionId', auth, adminOnly, async (req, res) => {
+router.delete('/:testId/sections/:sectionId', auth, testManagerOnly, async (req, res) => {
   try {
     const test = await Test.findById(req.params.testId);
     if (!test) return res.status(404).json({ message: 'Test not found' });
@@ -239,7 +294,7 @@ router.delete('/:testId/sections/:sectionId', auth, adminOnly, async (req, res) 
 });
 
 // Add question to section
-router.post('/:testId/sections/:sectionId/questions', auth, adminOnly, async (req, res) => {
+router.post('/:testId/sections/:sectionId/questions', auth, testManagerOnly, async (req, res) => {
   try {
     const { questionId, positiveMarks, negativeMarks } = req.body;
     const test = await Test.findById(req.params.testId);
@@ -248,6 +303,12 @@ router.post('/:testId/sections/:sectionId/questions', auth, adminOnly, async (re
     const section = test.sections.id(req.params.sectionId);
     if (!section) return res.status(404).json({ message: 'Section not found' });
 
+    const question = await Question.findById(questionId).select('subject');
+    if (!question) return res.status(404).json({ message: 'Question not found' });
+    const teacherSubjectId = getTeacherSubjectId(req.currentUser);
+    if (teacherSubjectId && String(question.subject) !== teacherSubjectId) {
+      return res.status(403).json({ message: 'You can only add questions from your assigned subject.' });
+    }
     // Check if question already exists in this section
     const exists = section.questions.some(
       (q) => q.question.toString() === questionId
@@ -282,7 +343,7 @@ router.post('/:testId/sections/:sectionId/questions', auth, adminOnly, async (re
 router.delete(
   '/:testId/sections/:sectionId/questions/:questionEntryId',
   auth,
-  adminOnly,
+  testManagerOnly,
   async (req, res) => {
     try {
       const test = await Test.findById(req.params.testId);
@@ -304,7 +365,9 @@ router.delete(
           { path: 'topic', select: 'name' },
         ],
       });
-      res.json(populated);
+      const teacherSubjectId = getTeacherSubjectId(req.currentUser);
+      if (!teacherSubjectId) return res.json(populated);
+      res.json(filterTestBySubjectForTeacher(populated, teacherSubjectId));
     } catch (error) {
       res.status(500).json({ message: error.message });
     }

@@ -483,6 +483,7 @@ router.post('/register/member', auth, adminOnly, async (req, res) => {
 
     const user = new User({
       name: String(name).trim(),
+      username: generatedEmail,
       email: generatedEmail,
       contactMail: normalizedContactMail,
       role: 'teacher',

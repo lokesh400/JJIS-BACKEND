@@ -4,6 +4,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   const testId = window.__TEST_ID__;
   let test = null;
+  let teacherSubjectId = null;
   let subjects = [];
   const sectionRules = {};
   const chapterCache = {};
@@ -11,7 +12,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   function esc(v) { return String(v || '').replace(/[&<>'\"]/g, (c) => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c])); }
 
-  function renderSections() {
+  async function renderSections() {
     const host = document.getElementById('sections');
     host.innerHTML = test.sections.map((s, i) => {
       const rules = sectionRules[s._id] || [];
@@ -23,7 +24,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         </button>
         <div id="body-${s._id}" class="p-4 space-y-3 ${i===0 ? '' : 'hidden'}">
           <div class="grid grid-cols-1 md:grid-cols-3 gap-2">
-            <select id="subject-${s._id}" class="border rounded-lg p-2"><option value="">Select Subject</option>${subjects.map(sub => `<option value="${sub._id}">${esc(sub.name)}</option>`).join('')}</select>
+            <select id="subject-${s._id}" class="border rounded-lg p-2" ${teacherSubjectId ? 'disabled' : ''}><option value="">Select Subject</option>${subjects.map(sub => `<option value="${sub._id}" ${teacherSubjectId && String(sub._id) === String(teacherSubjectId) ? 'selected' : ''}>${esc(sub.name)}</option>`).join('')}</select>
             <select id="chapter-${s._id}" class="border rounded-lg p-2"><option value="">Select Chapter</option></select>
             <button onclick="startAddRule('${s._id}')" class="bg-indigo-600 text-white rounded-lg px-3 py-2">Add Rule</button>
           </div>
@@ -38,6 +39,16 @@ document.addEventListener('DOMContentLoaded', async () => {
     }).join('');
 
     for (const s of test.sections) {
+      if (teacherSubjectId) {
+        const subjectEl = document.getElementById(`subject-${s._id}`);
+        if (subjectEl) {
+          subjectEl.value = String(teacherSubjectId);
+          const chapterEl = document.getElementById(`chapter-${s._id}`);
+          chapterEl.innerHTML = '<option value="">Loading...</option>';
+          if (!chapterCache[teacherSubjectId]) chapterCache[teacherSubjectId] = await API.get(`/chapters/subject/${teacherSubjectId}`);
+          chapterEl.innerHTML = '<option value="">Select Chapter</option>' + chapterCache[teacherSubjectId].map(ch => `<option value="${ch._id}">${esc(ch.name)}</option>`).join('');
+        }
+      }
       document.getElementById(`subject-${s._id}`).addEventListener('change', async (e) => {
         const sid = e.target.value;
         const chapterEl = document.getElementById(`chapter-${s._id}`);
@@ -166,7 +177,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   try {
     const [tp, s] = await Promise.all([API.get(`/tests/admin/${testId}`), API.get('/subjects')]);
     test = tp.test || tp;
-    subjects = s;
+    teacherSubjectId = tp.teacherSubjectId || null;
+    subjects = teacherSubjectId ? s.filter((sub) => String(sub._id) === String(teacherSubjectId)) : s;
     renderSections();
   } catch {
     toast.error('Failed to load auto generator');

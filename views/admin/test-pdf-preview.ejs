@@ -1,17 +1,32 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Print Test Paper</title>
+  <title>
+    <%= title %>
+  </title>
+
   <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Outfit:wght@400;500;600;700;800&display=swap');
+
     :root {
-      --ink: #111827;
-      --muted: #6b7280;
-      --line: #e5e7eb;
+      --font-ui: 'Inter', sans-serif;
+      --font-academic: 'Outfit', sans-serif;
+      --ink: #0f172a;
+      --muted: #475569;
+      --line: #cbd5e1;
       --paper: #ffffff;
+      --primary: #2563eb;
+      --primary-hover: #1d4ed8;
       --accent: #0f172a;
-      --bg: #f8fafc;
+      --bg: #f1f5f9;
+
+      --scale-img: 100%;
+      --scale-font: 14px;
+      --paper-padding-x: 3.5%;
+      --paper-padding-y: 20px;
     }
 
     * {
@@ -22,127 +37,524 @@
       display: none !important;
     }
 
-    html, body {
+    html,
+    body {
       margin: 0;
       padding: 0;
       background: var(--bg);
       color: var(--ink);
-      font-family: Arial, Helvetica, sans-serif;
+      font-family: var(--font-academic), sans-serif;
       -webkit-print-color-adjust: exact;
       print-color-adjust: exact;
+      min-height: 100vh;
+    }
+
+    body.has-watermark::after {
+      content: "GARUD CLASSES";
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%) rotate(-40deg);
+      font-size: 78px;
+      font-weight: 800;
+      color: rgba(15, 23, 42, 0.04);
+      z-index: -1000;
+      pointer-events: none;
+      white-space: nowrap;
+      text-transform: uppercase;
+      letter-spacing: 12px;
+      font-family: var(--font-academic);
+    }
+
+    @media print {
+      body.has-watermark::after {
+        color: rgba(0, 0, 0, 0.04) !important;
+      }
+
+      .section-title {
+        color: var(--ink) !important;
+        background: transparent !important;
+        border: 1.5px solid var(--ink) !important;
+        font-weight: 800 !important;
+        padding: 3px 8px !important;
+      }
+
+      .instructions-box {
+        background: transparent !important;
+        border: 1px dashed #475569 !important;
+      }
+
+      .candidate-info-box {
+        border-color: #000 !important;
+      }
+
+      .no-print,
+      .toolbar {
+        display: none !important;
+      }
+
+      .print-footer {
+        display: flex !important;
+        justify-content: space-between;
+        align-items: center;
+        border-top: 1.5px solid #475569 !important;
+        padding-top: 4px;
+        position: fixed;
+        bottom: 2mm;
+        left: var(--paper-padding-x);
+        right: var(--paper-padding-x);
+        font-size: 8.5px;
+        color: #475569;
+        font-family: var(--font-ui);
+        width: calc(100% - (2 * var(--paper-padding-x)));
+      }
+
+      .paper {
+        max-width: 100% !important;
+        width: 100% !important;
+        margin: 0 !important;
+        box-shadow: none !important;
+        padding: 4mm var(--paper-padding-x) !important;
+      }
     }
 
     @page {
       size: A4;
-      margin: 5mm;
+      margin-top: 10mm;
+      margin-bottom: 12mm;
+      margin-left: 0;
+      margin-right: 0;
+    }
+
+    @page :first {
+      margin-top: 10mm;
+    }
+
+    body.scale-compact {
+      --scale-img: 85%;
+      --scale-font: 12.5px;
+    }
+
+    body.scale-standard {
+      --scale-img: 92%;
+      --scale-font: 14px;
+    }
+
+    body.scale-spacious {
+      --scale-img: 115%;
+      --scale-font: 15.5px;
     }
 
     .toolbar {
-      max-width: 980px;
-      margin: 0 auto;
-      padding: 8px 8px 0;
+      max-width: 1000px;
+      margin: 16px auto;
+      padding: 14px 20px;
       display: flex;
-      justify-content: flex-end;
+      justify-content: space-between;
       align-items: center;
+      background: rgba(15, 23, 42, 0.93);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 14px;
+      box-shadow: 0 12px 30px rgba(0, 0, 0, 0.15);
+      color: #f8fafc;
+      transition: all 0.3s ease;
+      font-family: var(--font-ui);
+    }
+
+    .toolbar-brand {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .brand-badge {
+      background: var(--primary);
+      color: #fff;
+      font-size: 10px;
+      font-weight: 800;
+      padding: 2px 6px;
+      border-radius: 6px;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+    }
+
+    .toolbar-brand h3 {
+      margin: 0;
+      font-size: 15px;
+      font-weight: 700;
+      letter-spacing: -0.3px;
+    }
+
+    .toolbar-groups {
+      display: flex;
+      align-items: center;
+      gap: 20px;
+    }
+
+    .control-group {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+    }
+
+    .control-group label {
+      font-size: 11px;
+      font-weight: 600;
+      color: #94a3b8;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .button-toggle-group {
+      display: flex;
+      background: rgba(255, 255, 255, 0.08);
+      border-radius: 8px;
+      padding: 2px;
+      border: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    .toggle-btn {
+      appearance: none;
+      background: none;
+      border: 0;
+      color: #94a3b8;
+      font-family: var(--font-ui);
+      font-size: 12px;
+      font-weight: 600;
+      padding: 6px 12px;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .toggle-btn.active {
+      background: #ffffff;
+      color: #0f172a;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+    }
+
+    .control-group select {
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      color: #f8fafc;
+      border-radius: 8px;
+      padding: 6px 10px;
+      font-family: var(--font-ui);
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      outline: none;
+      transition: all 0.2s ease;
+    }
+
+    .control-group select option {
+      background: #0f172a;
+      color: #f8fafc;
+    }
+
+    .control-group.checkboxes {
+      flex-direction: row;
+      align-items: center;
+      gap: 16px;
+      margin-top: 14px;
+    }
+
+    .checkbox-label {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+      font-weight: 600;
+      color: #cbd5e1;
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .checkbox-label input[type="checkbox"] {
+      appearance: none;
+      width: 16px;
+      height: 16px;
+      border: 1.5px solid rgba(255, 255, 255, 0.3);
+      border-radius: 4px;
+      outline: none;
+      background: transparent;
+      cursor: pointer;
+      position: relative;
+      transition: all 0.2s ease;
+    }
+
+    .checkbox-label input[type="checkbox"]:checked {
+      background: var(--primary);
+      border-color: var(--primary);
+    }
+
+    .checkbox-label input[type="checkbox"]:checked::after {
+      content: "";
+      position: absolute;
+      left: 5px;
+      top: 2px;
+      width: 4px;
+      height: 8px;
+      border: solid white;
+      border-width: 0 2px 2px 0;
+      transform: rotate(45deg);
     }
 
     .print-btn {
       appearance: none;
       border: 0;
-      background: var(--accent);
+      background: var(--primary);
       color: #fff;
-      border-radius: 10px;
-      padding: 10px 16px;
-      font-size: 14px;
+      border-radius: 8px;
+      padding: 8px 16px;
+      font-family: var(--font-ui);
+      font-size: 13px;
       font-weight: 700;
       cursor: pointer;
-      box-shadow: 0 8px 20px rgba(15, 23, 42, 0.14);
-    }
-
-    .print-btn:hover {
-      background: #1f2937;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      box-shadow: 0 4px 12px rgba(37, 99, 235, 0.25);
+      transition: all 0.2s ease;
     }
 
     .loading {
-      max-width: 980px;
-      margin: 12px auto;
-      padding: 12px 16px 0;
+      max-width: 1000px;
+      margin: 24px auto;
+      padding: 20px;
+      text-align: center;
+      background: var(--paper);
+      border-radius: 12px;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
       color: var(--muted);
-      font-size: 15px;
+      font-size: 16px;
+      font-weight: 500;
+      font-family: var(--font-ui);
     }
 
     .paper {
-      max-width: 980px;
-      margin: 0 auto;
-      padding: 0 8px 0;
+      max-width: 1000px;
+      margin: 0 auto 40px;
       background: var(--paper);
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+      transition: padding 0.2s ease;
+      position: relative;
+      padding: var(--paper-padding-y) var(--paper-padding-x);
     }
 
     .header {
-      text-align: center;
-      padding: 6px 0 18px;
-      border-bottom: 1px solid var(--line);
-      margin-bottom: 18px;
+      padding-bottom: 12px;
+      border-bottom: 2px solid var(--ink);
+      margin-bottom: 16px;
     }
 
-    .title {
-      margin: 0;
-      font-size: 26px;
-      line-height: 1.2;
-      font-weight: 800;
-      color: var(--ink);
-      letter-spacing: 0.2px;
+    .candidate-info-box {
+      border: 1px solid var(--muted);
+      border-radius: 6px;
+      margin-top: 14px;
+      padding: 10px 14px;
+      font-size: 11px;
+      font-family: var(--font-ui);
+      background: transparent;
     }
 
-    .meta {
-      margin-top: 8px;
+    .info-row {
       display: flex;
-      justify-content: center;
-      flex-wrap: wrap;
-      gap: 10px 18px;
+      justify-content: space-between;
+      margin-bottom: 8px;
+    }
+
+    .info-row.last-row {
+      margin-bottom: 0;
+    }
+
+    .info-cell {
+      flex: 1;
+      color: var(--ink);
+    }
+
+    .instructions-box {
+      border: 1px dashed var(--line);
+      background: #faf8f5;
+      border-radius: 8px;
+      padding: 12px 16px;
+      margin-bottom: 24px;
+      font-family: var(--font-ui);
+      break-inside: avoid;
+    }
+
+    .instructions-title {
+      font-size: 11.5px;
+      font-weight: 800;
+      letter-spacing: 0.5px;
+      margin: 0 0 6px 0;
+      color: var(--accent);
+      text-transform: uppercase;
+    }
+
+    .instructions-list {
+      margin: 0;
+      padding-left: 16px;
+      font-size: 11px;
+      line-height: 1.5;
       color: var(--muted);
-      font-size: 13px;
+    }
+
+    .instructions-list li {
+      margin-bottom: 4px;
+    }
+
+    .instructions-list li:last-child {
+      margin-bottom: 0;
     }
 
     .section {
-      margin-top: 18px;
+      margin-bottom: 16px;
     }
 
     .section-title {
-      margin: 0 0 12px;
-      padding-top: 4px;
-      font-size: 16px;
+      font-size: 13px;
       font-weight: 800;
-      color: var(--ink);
+      color: #ffffff;
+      background: var(--accent);
+      padding: 4px 10px;
+      border-radius: 4px;
+      margin: 0 0 14px 0;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      display: inline-block;
     }
 
-    .question-row {
+    .header-branding {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      margin-bottom: 12px;
+    }
+
+    .logo-area {
+      font-family: var(--font-academic);
+      font-weight: 800;
+      line-height: 1;
+      display: flex;
+      align-items: baseline;
+      gap: 4px;
+    }
+
+    .logo-text {
+      font-size: 26px;
+      color: var(--ink);
+      letter-spacing: -0.5px;
+    }
+
+    .logo-subtext {
+      font-size: 18px;
+      color: var(--primary);
+      letter-spacing: 0.5px;
+    }
+
+    .header-target {
+      font-size: 11px;
+      font-weight: 800;
+      color: var(--muted);
+      letter-spacing: 1px;
+      font-family: var(--font-ui);
+    }
+
+    .header-divider {
+      height: 1px;
+      background-color: var(--line);
+      margin-bottom: 12px;
+    }
+
+    .test-title {
+      margin: 0 0 12px;
+      font-size: 24px;
+      font-weight: 800;
+      color: var(--ink);
+      text-align: center;
+      letter-spacing: -0.3px;
+      line-height: 1.2;
+    }
+
+    .meta-row {
+      display: flex;
+      justify-content: space-between;
+      font-size: 13px;
+      color: var(--ink);
+      margin-bottom: 16px;
+      font-weight: 600;
+      font-family: var(--font-ui);
+    }
+
+    .meta-col {
+      flex: 1;
+    }
+
+    .text-center {
+      text-align: center;
+    }
+
+    .text-right {
+      text-align: right;
+    }
+
+    .question-grid.cols-2 {
       display: grid;
       grid-template-columns: 1fr 1fr;
-      gap: 10px;
-      margin-bottom: 16px;
-      break-inside: avoid;
-      page-break-inside: avoid;
+      column-gap: 32px;
+      row-gap: 16px;
+    }
+
+    .question-grid.cols-2 .question-card:nth-child(odd) {
+      padding-right: 16px;
+    }
+
+    .question-grid.cols-2 .question-card:nth-child(even) {
+      border-left: 1.5px solid var(--line);
+      padding-left: 16px;
     }
 
     .question-card {
       display: flex;
+      flex-direction: row;
       align-items: flex-start;
-      gap: 0px;
-      min-width: 0;
+      gap: 12px;
       width: 100%;
       break-inside: avoid;
       page-break-inside: avoid;
     }
 
-    .question-no {
+    .question-no-container {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 2px;
       flex: 0 0 auto;
-      min-width: 34px;
+      min-width: 44px;
+      padding-top: 2px;
+    }
+
+    .question-no {
       font-weight: 800;
-      font-size: 14px;
-      line-height: 1.45;
+      font-size: calc(var(--scale-font) - 2.5px);
       color: var(--ink);
-      padding-top: 1px;
+      font-family: var(--font-academic);
+      line-height: 1;
+    }
+
+    .question-marks {
+      font-size: 8px;
+      color: var(--muted);
+      font-weight: 700;
+      font-family: var(--font-ui);
+      background: #f1f5f9;
+      padding: 2px 4px;
+      border-radius: 4px;
+      line-height: 1.1;
+      margin-top: 4px;
     }
 
     .question-content {
@@ -153,164 +565,428 @@
     .question-image {
       display: block;
       width: 100%;
+      max-width: var(--scale-img);
       height: auto;
       border: 0;
-      outline: 0;
+      border-radius: 4px;
     }
 
     .image-placeholder {
       width: 100%;
-      min-height: 84px;
-    }
-
-    .question-foot {
-      display: none;
+      min-height: 80px;
+      border: 1px dashed var(--line);
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #f8fafc;
+      color: #94a3b8;
+      font-size: 12px;
+      font-weight: 500;
     }
 
     .error {
       color: #b91c1c;
       font-size: 14px;
       line-height: 1.5;
-      margin-top: 10px;
+      font-family: var(--font-ui);
+      padding: 20px;
     }
 
-    @media print {
-      html, body {
-        background: #fff;
-      }
-
-      .toolbar {
-        display: none !important;
-      }
-
-      .loading {
-        display: none !important;
-      }
-
-      .paper {
-        max-width: none;
-        margin: 0;
-        padding: 0;
-      }
-
-      .question-row {
-        grid-template-columns: 1fr 1fr;
-      }
+    .print-footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-top: 1px solid var(--line);
+      padding-top: 8px;
+      margin-top: 24px;
+      font-size: 11px;
+      color: var(--muted);
+      font-family: var(--font-ui);
     }
   </style>
 </head>
-<body>
+
+<body class="has-watermark scale-standard margin-standard">
+
   <div class="toolbar no-print">
-    <button class="print-btn" type="button" onclick="window.print()">Print Test Paper</button>
+    <div class="toolbar-brand">
+      <span class="brand-badge">Garud</span>
+      <h3>Print Settings</h3>
+    </div>
+
+    <div class="toolbar-groups">
+
+      <div class="control-group">
+        <label>Layout Columns</label>
+
+        <div class="button-toggle-group">
+          <button type="button" class="toggle-btn active" id="btn-cols-2" onclick="setLayoutColumns(2)">
+            2 Columns
+          </button>
+
+          <button type="button" class="toggle-btn" id="btn-cols-1" onclick="setLayoutColumns(1)">
+            1 Column
+          </button>
+        </div>
+      </div>
+
+      <div class="control-group">
+        <label>Question Scale</label>
+
+        <select id="select-img-scale" onchange="setImageScale(this.value)">
+          <option value="scale-compact">Compact (85%)</option>
+          <option value="scale-standard" selected>Standard (100%)</option>
+          <option value="scale-spacious">Large (115%)</option>
+        </select>
+      </div>
+
+      <div class="control-group">
+        <label>Side Margin (%)</label>
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <input type="range" id="input-margin-pct" min="0.5" max="10" step="0.5" value="3.5"
+            oninput="setDynamicMargin(this.value)"
+            style="width: 100px; height: 6px; border-radius: 3px; background: #475569; outline: none; cursor: pointer; accent-color: var(--primary);">
+          <span id="label-margin-pct"
+            style="font-size: 12px; font-weight: 700; color: #fff; min-width: 32px; text-align: right;">3.5%</span>
+        </div>
+      </div>
+
+    </div>
+
+    <div class="toolbar-actions">
+      <button class="print-btn" type="button" onclick="window.print()">
+        Print Paper
+      </button>
+    </div>
   </div>
 
-  <div id="loading" class="loading">Generating test paper...</div>
+  <div id="loading" class="loading">
+    Generating premium exam preview...
+  </div>
 
   <main id="paper" class="paper hidden"></main>
 
+  <!-- Running Page Footer (Prints at the bottom of every page) -->
+  <div class="print-footer">
+    <span>GARUD CLASSES &mdash; Test: <strong class="test-title-footer">Test Paper</strong></span>
+    <span>Page &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; of &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span>
+  </div>
+
+  <!-- IMPORTANT -->
+  <!-- SEND JSON.STRINGIFY(testData) FROM BACKEND -->
+  <script type="text/plain" id="test-data-json"><%- testData %></script>
+
   <script>
+
     (function () {
-      const testData = <%- testData %>  ;
-      const paperEl = document.getElementById('paper');
+
       const loadingEl = document.getElementById('loading');
-      const MAX_PAPER_WIDTH = 980;
+      const paperEl = document.getElementById('paper');
 
-      const escapeHtml = (value) => String(value ?? '')
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#39;');
+      let testData = {};
 
-      const sections = Array.isArray(testData.sections) ? testData.sections : [];
-      const totalQuestions = sections.reduce((sum, section) => {
-        return sum + (Array.isArray(section.questions) ? section.questions.length : 0);
-      }, 0);
+      try {
+
+        const jsonElement = document.getElementById('test-data-json');
+
+        if (!jsonElement) {
+          throw new Error("test-data-json element not found");
+        }
+
+        const rawData = jsonElement.textContent.trim();
+
+        if (!rawData) {
+          throw new Error("Empty test data");
+        }
+
+        testData = JSON.parse(rawData);
+
+      } catch (err) {
+
+        console.error("JSON ERROR:", err);
+
+        loadingEl.innerHTML = `
+          <div class="error">
+            Failed to load test preview.<br><br>
+            ${err.message}
+          </div>
+        `;
+
+        return;
+      }
+
+      const escapeHtml = (value) =>
+        String(value ?? '')
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;')
+          .replace(/'/g, '&#39;');
+
+      const sections = Array.isArray(testData.sections)
+        ? testData.sections
+        : [];
+
+      window.setLayoutColumns = function (cols) {
+
+        const grids = document.querySelectorAll('.question-grid');
+
+        const btn1 = document.getElementById('btn-cols-1');
+        const btn2 = document.getElementById('btn-cols-2');
+
+        if (cols === 1) {
+
+          grids.forEach(grid => {
+            grid.classList.remove('cols-2');
+            grid.classList.add('cols-1');
+          });
+
+          btn1?.classList.add('active');
+          btn2?.classList.remove('active');
+
+        } else {
+
+          grids.forEach(grid => {
+            grid.classList.remove('cols-1');
+            grid.classList.add('cols-2');
+          });
+
+          btn2?.classList.add('active');
+          btn1?.classList.remove('active');
+        }
+      };
+
+      window.setImageScale = function (scaleClass) {
+
+        document.body.classList.remove(
+          'scale-compact',
+          'scale-standard',
+          'scale-spacious'
+        );
+
+        document.body.classList.add(scaleClass);
+      };
+
+      window.setDynamicMargin = function (value) {
+        const pct = parseFloat(value);
+        document.body.style.setProperty('--paper-padding-x', `${pct}%`);
+        document.getElementById('label-margin-pct').textContent = `${pct}%`;
+      };
 
       function renderQuestionCard(questionEntry, questionNumber) {
-        const question = (questionEntry && questionEntry.question) ? questionEntry.question : {};
-        const imageUrl = question.imageUrl ? escapeHtml(question.imageUrl) : '';
+
+        const question = questionEntry?.question || {};
+
+        const imageUrl = question.imageUrl
+          ? escapeHtml(question.imageUrl)
+          : '';
+
+        const posMarks = questionEntry?.positiveMarks ?? 4;
+        const negMarks = questionEntry?.negativeMarks ?? 1;
 
         return `
           <div class="question-card">
-            <div class="question-no">Q${questionNumber}</div>
-            <div class="question-content">
-              ${imageUrl ? `<img class="question-image" src="${imageUrl}" alt="Question ${questionNumber}">` : '<div class="image-placeholder"></div>'}
+
+            <div class="question-no-container">
+              <div class="question-no">
+                Q. ${questionNumber}
+              </div>
+
+              <div class="question-marks">
+                [+${posMarks}, -${negMarks}]
+              </div>
             </div>
+
+            <div class="question-content">
+
+              ${imageUrl
+            ? `
+                    <img
+                      class="question-image"
+                      src="${imageUrl}"
+                      alt="Question ${questionNumber}"
+                      loading="lazy"
+                    />
+                  `
+            : `
+                    <div class="image-placeholder">
+                      No Question Image Provided
+                    </div>
+                  `
+          }
+
+            </div>
+
           </div>
         `;
       }
 
-      function buildSectionRows(sectionQuestions, startQuestionNumber) {
-        const rows = [];
-        for (let i = 0; i < sectionQuestions.length; i += 2) {
-          const left = {
-            questionEntry: sectionQuestions[i],
-            questionNumber: startQuestionNumber + i,
-          };
-          const right = sectionQuestions[i + 1]
-            ? {
-                questionEntry: sectionQuestions[i + 1],
-                questionNumber: startQuestionNumber + i + 1,
-              }
-            : null;
-
-          rows.push({
-            type: 'pair',
-            items: [left, right],
-          });
-        }
-        return rows;
-      }
-
       function render() {
+
         try {
+
           let html = '';
+
+          // 1. Calculate dynamic test aggregates
+          const totalQuestions = sections.reduce((a, s) => a + (s.questions?.length || 0), 0);
+          const totalMaxMarks = sections.reduce((sum, s) => {
+            return sum + (Array.isArray(s.questions)
+              ? s.questions.reduce((subSum, q) => subSum + (q.positiveMarks ?? 4), 0)
+              : 0);
+          }, 0);
+
           html += `
-            <section class="header">
-              <h1 class="title">${escapeHtml(testData.name || 'Test Paper')}</h1>
-              <div class="meta">
-                <span>Duration: ${escapeHtml(testData.duration || '-')} minutes</span>
-                <span>Total Questions: ${totalQuestions}</span>
-                ${testData.description ? `<span>${escapeHtml(testData.description)}</span>` : ''}
+            <section class="header" id="test-header">
+
+              <div class="header-branding">
+
+                <div class="logo-area">
+                  <span class="logo-text">GARUD</span>
+                  <span class="logo-subtext">CLASSES</span>
+                </div>
+
+                <div class="header-target">
+                  TARGET: JEE (MAIN & ADVANCED) | NEET | FOUNDATION
+                </div>
+
               </div>
+
+              <div class="header-divider"></div>
+
+              <h1 class="test-title">
+                ${escapeHtml(testData.name || 'Test Paper')}
+              </h1>
+
+              <div class="meta-row">
+
+                <div class="meta-col">
+                  <strong>Time Allowed:</strong>
+                  ${escapeHtml(testData.duration || '0')} Minutes
+                </div>
+
+                <div class="meta-col text-center">
+                  <strong>Test ID:</strong>
+                  ${escapeHtml(testData._id ? String(testData._id).substring(18).toUpperCase() : 'N/A')}
+                </div>
+
+                <div class="meta-col text-right">
+                  <strong>Max Marks:</strong>
+                  ${totalMaxMarks}
+                </div>
+
+              </div>
+
+              <div class="candidate-info-box">
+                <div class="info-row">
+                  <div class="info-cell"><strong>Candidate Name:</strong> ______________________________________________</div>
+                  <div class="info-cell"><strong>Roll Number:</strong> _______________________</div>
+                </div>
+                <div class="info-row">
+                  <div class="info-cell"><strong>Batch Name:</strong> ______________________________________________</div>
+                  <div class="info-cell"><strong>Date of Exam:</strong> ______________________</div>
+                </div>
+                <div class="info-row last-row">
+                  <div class="info-cell"><strong>Candidate's Signature:</strong> _________________________________</div>
+                  <div class="info-cell"><strong>Invigilator's Signature:</strong> ___________________</div>
+                </div>
+              </div>
+
+            </section>
+          `;
+
+          // 2. Build Dynamic General Instructions
+          const instructions = [];
+          instructions.push(`This test paper consists of <strong>${totalQuestions} questions</strong> structured into <strong>${sections.length} distinct sections</strong>.`);
+
+          sections.forEach((sec) => {
+            const qCount = Array.isArray(sec.questions) ? sec.questions.length : 0;
+            if (qCount > 0) {
+              const posM = sec.questions[0].positiveMarks ?? 4;
+              const negM = sec.questions[0].negativeMarks ?? 1;
+              instructions.push(`<strong>${escapeHtml(sec.name)}:</strong> Contains <strong>${qCount} questions</strong> with marking scheme: <strong>+${posM}</strong> marks for correct response and <strong>-${negM}</strong> marks for wrong answer.`);
+            } else {
+              instructions.push(`<strong>${escapeHtml(sec.name)}:</strong> Contains 0 questions.`);
+            }
+          });
+
+          instructions.push("All questions are compulsory. Read the questions carefully before marking your responses.");
+          instructions.push("Ensure candidate details are entered accurately and signatures are placed in the respective cells.");
+          instructions.push("Darken the bubble corresponding to the correct option in the OMR sheet using a black or blue ballpoint pen. Do not smudge or make stray marks.");
+          instructions.push("Logarithmic tables, slide rules, calculators, mobile devices, and electronic smart gadgets are strictly prohibited.");
+
+          html += `
+            <section class="instructions-box" id="test-instructions">
+              <h3 class="instructions-title">GENERAL INSTRUCTIONS</h3>
+              <ul class="instructions-list">
+                ${instructions.map(inst => `<li>${inst}</li>`).join('')}
+              </ul>
             </section>
           `;
 
           let questionCounter = 1;
-          for (let sectionIndex = 0; sectionIndex < sections.length; sectionIndex += 1) {
-            const section = sections[sectionIndex];
-            const sectionQuestions = Array.isArray(section.questions) ? section.questions : [];
-            const rows = buildSectionRows(sectionQuestions, questionCounter);
 
-            html += `<section class="section">`;
-            html += `<h2 class="section-title">${escapeHtml(section.name || `Section ${sectionIndex + 1}`)}</h2>`;
+          sections.forEach((section, index) => {
 
-            rows.forEach((row) => {
-              html += `<div class="question-row">`;
-              html += renderQuestionCard(row.items[0].questionEntry, row.items[0].questionNumber);
-              if (row.items[1]) {
-                html += renderQuestionCard(row.items[1].questionEntry, row.items[1].questionNumber);
-              } else {
-                html += '<div class="question-card"></div>';
-              }
-              html += `</div>`;
+            const sectionQuestions = Array.isArray(section.questions)
+              ? section.questions
+              : [];
+
+            html += `
+              <section class="section">
+
+                <h2 class="section-title">
+                  ${escapeHtml(section.name || `Section ${index + 1}`)}
+                </h2>
+
+                <div class="question-grid cols-2">
+            `;
+
+            sectionQuestions.forEach(question => {
+
+              html += renderQuestionCard(
+                question,
+                questionCounter++
+              );
+
             });
 
-            questionCounter += sectionQuestions.length;
-            html += `</section>`;
-          }
+            html += `
+                </div>
+              </section>
+            `;
+          });
 
           paperEl.innerHTML = html;
+
+          const footerTitleEl = document.querySelector('.test-title-footer');
+          if (footerTitleEl) {
+            footerTitleEl.innerText = testData.name || 'Test Paper';
+          }
+
           paperEl.classList.remove('hidden');
+
           loadingEl.remove();
-        } catch (error) {
-          loadingEl.innerHTML = `<div class="error">Error loading test preview: ${escapeHtml(error.message)}</div>`;
+
+        } catch (err) {
+
+          console.error("RENDER ERROR:", err);
+
+          loadingEl.innerHTML = `
+            <div class="error">
+              Error rendering paper.<br><br>
+              ${escapeHtml(err.message)}
+            </div>
+          `;
         }
       }
 
       render();
+
     })();
+
   </script>
+
 </body>
+
 </html>

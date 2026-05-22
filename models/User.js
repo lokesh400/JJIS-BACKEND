@@ -36,6 +36,10 @@ const userSchema = new mongoose.Schema({
     enum: ['admin', 'student', 'teacher', 'coordinator'],
     default: 'student',
   },
+  isActive: {
+    type: Boolean,
+    default: true,
+  },
   class: {
     type: String,
     trim: true,
@@ -65,9 +69,6 @@ const userSchema = new mongoose.Schema({
   }],
 }, { timestamps: true });
 
-// passport-local-mongoose adds hash + salt fields and register/authenticate methods.
-// usernameField maps to the 'email' field; PBKDF2-SHA512 with 310 000 iterations
-// (meets NIST SP 800-132 recommendations for 2024).
 userSchema.plugin(passportLocalMongoose, {
   usernameField: 'email',
   iterations:    310000,
@@ -75,8 +76,8 @@ userSchema.plugin(passportLocalMongoose, {
   digestAlgorithm: 'sha512',
   errorMessages: {
     UserExistsError:        'An account with this email already exists.',
-    IncorrectPasswordError: 'Invalid email or password.',
-    IncorrectUsernameError: 'Invalid email or password.',
+    IncorrectPasswordError: 'Invalid password.',
+    IncorrectUsernameError: 'Invalid username.',
     MissingUsernameError:   'Email is required.',
     MissingPasswordError:   'Password is required.',
   },

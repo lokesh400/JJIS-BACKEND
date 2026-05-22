@@ -13,6 +13,12 @@ const TotalMember = new mongoose.Schema({
     },
     Biology:{
         type:Number,
+    },
+    Coordinator:{
+        type:Number,
+    },
+    TeamMembers:{
+        type:Number,
     }
 
 }, { timestamps: true });

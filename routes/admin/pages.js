@@ -78,5 +78,8 @@ router.get("/admin/battleground", (req, res) =>
 router.get("/admin/manage-team", (req, res) =>
   res.render("admin/manage-team", { title: "Manage Team" }),
 );
+router.get("/admin/manage-students", (req, res) =>
+  res.render("admin/manage-students", { title: "Manage Students" }),
+);
 
 module.exports = router;

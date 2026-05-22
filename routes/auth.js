@@ -8,6 +8,9 @@ const { sendPasswordResetOtpEmail, sendPasswordResetLinkEmail } = require('../co
 const { auth, adminOnly } = require('../middleware/auth');
 const Subject = require('../models/Subject');
 const TotalMember = require('../models/TotalMembers');
+const Purchase = require('../models/Purchase');
+const TestSeries = require('../models/TestSeries');
+const Course = require('../models/Course');
 
 const router = express.Router();
 const PASSWORD_RESET_TOKEN_TTL_SECONDS = Math.max(Number(process.env.PASSWORD_RESET_TOKEN_TTL_SECONDS || 600), 60);
@@ -375,6 +378,9 @@ router.post('/login', authLimiter, (req, res, next) => {
     if (!user) {
       return res.status(400).json({ message: info?.message || 'Invalid email or password.' });
     }
+    if (user.isActive === false) {
+      return res.status(403).json({ message: 'Your account has been deactivated. Please contact the administrator.' });
+    }
 
     // Regenerate session ID before storing auth to prevent session-fixation attacks
     req.session.regenerate((err) => {
@@ -396,6 +402,9 @@ router.post('/m/login', authLimiter, (req, res, next) => {
     if (err) return next(err);
     if (!user) {
       return res.status(400).json({ message: info?.message || 'Invalid email or password.' });
+    }
+    if (user.isActive === false) {
+      return res.status(403).json({ message: 'Your account has been deactivated. Please contact the administrator.' });
     }
 
     // Regenerate session ID before storing auth to prevent session-fixation attacks
@@ -471,41 +480,48 @@ router.put('/student/profile', auth, async (req, res, next) => {
 router.post('/register/member', auth, adminOnly, async (req, res) => {
   try {
     const { name, contactMail, subjects, role } = req.body || {};
-    const targetRole = role === 'coordinator' ? 'coordinator' : 'teacher';
+    
+    let targetRole = 'teacher';
+    if (['coordinator', 'admin'].includes(role)) {
+      targetRole = role;
+    }
 
     if (!name || !contactMail) {
       return res.status(400).json({ message: 'Name and contactMail are required.' });
     }
-    if (targetRole === 'teacher' && (!Array.isArray(subjects) || subjects.length === 0)) {
-      return res.status(400).json({ message: 'At least one subject is required for teacher.' });
+    if (['teacher', 'coordinator'].includes(targetRole) && (!Array.isArray(subjects) || subjects.length === 0)) {
+      return res.status(400).json({ message: `At least one subject is required for ${targetRole}.` });
     }
 
     const normalizedContactMail = String(contactMail).trim().toLowerCase();
     const normalizedSubjects = Array.isArray(subjects) ? subjects : [];
 
-    const subjectDocs = await Subject.find({ _id: { $in: normalizedSubjects } }, { _id: 1, name: 1 }).lean();
-    if (!subjectDocs.length) {
-      return res.status(400).json({ message: 'Invalid subjects selected.' });
+    let primarySubjectDoc;
+    let primarySubjectKey = 'Mathematics';
+    let primarySubjectSlug = targetRole;
+
+    if (normalizedSubjects.length > 0) {
+      const subjectDocs = await Subject.find({ _id: { $in: normalizedSubjects } }, { _id: 1, name: 1 }).lean();
+      const subjectMap = {
+        physics: 'Physics',
+        chemistry: 'Chemistry',
+        biology: 'Biology',
+        mathematics: 'Mathematics',
+        math: 'Mathematics',
+        maths: 'Mathematics',
+      };
+      primarySubjectDoc = subjectDocs.find((s) => subjectMap[String(s.name || '').trim().toLowerCase()]);
+      if (primarySubjectDoc) {
+        primarySubjectKey = subjectMap[String(primarySubjectDoc.name).trim().toLowerCase()];
+        primarySubjectSlug = primarySubjectKey.toLowerCase();
+      }
     }
 
-    const subjectMap = {
-      physics: 'Physics',
-      chemistry: 'Chemistry',
-      biology: 'Biology',
-      mathematics: 'Mathematics',
-      math: 'Mathematics',
-      maths: 'Mathematics',
-    };
-
-    const primarySubjectDoc = subjectDocs.find((s) => subjectMap[String(s.name || '').trim().toLowerCase()]);
-    if (!primarySubjectDoc) {
+    if (targetRole === 'teacher' && !primarySubjectDoc) {
       return res.status(400).json({
         message: 'Auto-email is supported only for Physics, Chemistry, Biology, Mathematics.',
       });
     }
-
-    const primarySubjectKey = subjectMap[String(primarySubjectDoc.name).trim().toLowerCase()];
-    const primarySubjectSlug = primarySubjectKey.toLowerCase();
 
     let counterDoc = await TotalMember.findOne();
     if (!counterDoc) {
@@ -514,17 +530,27 @@ router.post('/register/member', auth, adminOnly, async (req, res) => {
         Chemistry: 0,
         Mathematics: 0,
         Biology: 0,
+        Coordinator: 0,
+        TeamMembers: 0,
       });
     }
 
+    let incrementKey = primarySubjectKey;
+    if (targetRole === 'coordinator') {
+      incrementKey = 'Coordinator';
+      primarySubjectSlug = 'coordinator';
+    }
+
+    const updateObj = { [incrementKey]: 1, TeamMembers: 1 };
+
     const updatedCounter = await TotalMember.findByIdAndUpdate(
       counterDoc._id,
-      { $inc: { [primarySubjectKey]: 1 } },
+      { $inc: updateObj },
       { new: true }
     ).lean();
 
-    const subjectCount = Number(updatedCounter?.[primarySubjectKey] || 0);
-    const generatedEmail = `${primarySubjectSlug}.${subjectCount}@garudclasses.com`;
+    const countVal = Number(updatedCounter?.[incrementKey] || 0);
+    const generatedEmail = `${primarySubjectSlug}.${countVal}@garudclasses.com`;
 
     const tempPassword = normalizedContactMail;
 
@@ -565,8 +591,9 @@ router.get('/team', auth, adminOnly, async (req, res, next) => {
   try {
     const users = await User.find(
       { role: { $in: ['teacher', 'coordinator', 'admin'] } },
-      { name: 1, email: 1, role: 1, mobile: 1, createdAt: 1 }
+      { name: 1, email: 1, contactMail: 1, role: 1, mobile: 1, subjects: 1, isActive: 1, createdAt: 1 }
     )
+      .populate('subjects', '_id name')
       .sort({ role: 1, name: 1 })
       .lean();
 
@@ -576,5 +603,264 @@ router.get('/team', auth, adminOnly, async (req, res, next) => {
   }
 });
 
+router.patch('/team/:id/status', auth, adminOnly, async (req, res, next) => {
+  try {
+    const { isActive } = req.body;
+    if (typeof isActive !== 'boolean') {
+      return res.status(400).json({ message: 'isActive must be a boolean.' });
+    }
+
+    if (req.user._id.toString() === req.params.id && !isActive) {
+      return res.status(400).json({ message: 'You cannot deactivate your own account.' });
+    }
+
+    const user = await User.findByIdAndUpdate(
+      req.params.id,
+      { isActive },
+      { new: true }
+    );
+    if (!user) {
+      return res.status(404).json({ message: 'Member not found.' });
+    }
+
+    res.json({ message: `Member ${isActive ? 'activated' : 'deactivated'} successfully.`, user });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.put('/team/:id', auth, adminOnly, async (req, res, next) => {
+  try {
+    const { name, contactMail, role, subjects } = req.body;
+    if (!name || !contactMail || !role) {
+      return res.status(400).json({ message: 'Name, contact email and role are required.' });
+    }
+
+    if (['teacher', 'coordinator'].includes(role) && (!Array.isArray(subjects) || subjects.length === 0)) {
+      return res.status(400).json({ message: `At least one subject is required for ${role}.` });
+    }
+
+    const user = await User.findById(req.params.id);
+    if (!user) {
+      return res.status(404).json({ message: 'Member not found.' });
+    }
+
+    user.name = name.trim();
+    user.contactMail = contactMail.trim().toLowerCase();
+    user.role = role;
+    user.subjects = Array.isArray(subjects) ? subjects : [];
+
+    await user.save();
+    res.json({ message: 'Member updated successfully.', user });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.delete('/team/:id', auth, adminOnly, async (req, res, next) => {
+  try {
+    if (req.user._id.toString() === req.params.id) {
+      return res.status(400).json({ message: 'You cannot delete your own account.' });
+    }
+
+    const user = await User.findById(req.params.id);
+    if (!user) {
+      return res.status(404).json({ message: 'Member not found.' });
+    }
+
+    let counterDoc = await TotalMember.findOne();
+    if (counterDoc) {
+      const decrObj = {};
+
+      if (user.role === 'coordinator') {
+        const currentCoordCount = Number(counterDoc.Coordinator || 0);
+        if (currentCoordCount > 0) decrObj.Coordinator = -1;
+      } else {
+        const subjects = user.subjects || [];
+        if (subjects.length > 0) {
+          const subjectDocs = await Subject.find({ _id: { $in: subjects } }, { _id: 1, name: 1 }).lean();
+          const subjectMap = {
+            physics: 'Physics',
+            chemistry: 'Chemistry',
+            biology: 'Biology',
+            mathematics: 'Mathematics',
+            math: 'Mathematics',
+            maths: 'Mathematics',
+          };
+          const primarySubjectDoc = subjectDocs.find((s) => subjectMap[String(s.name || '').trim().toLowerCase()]);
+          if (primarySubjectDoc) {
+            const primarySubjectKey = subjectMap[String(primarySubjectDoc.name).trim().toLowerCase()];
+            const currentSubjectCount = Number(counterDoc[primarySubjectKey] || 0);
+            if (currentSubjectCount > 0) {
+              decrObj[primarySubjectKey] = -1;
+            }
+          }
+        }
+      }
+
+      const currentTeamCount = Number(counterDoc.TeamMembers || 0);
+      if (currentTeamCount > 0) {
+        decrObj.TeamMembers = -1;
+      }
+
+      if (Object.keys(decrObj).length > 0) {
+        await TotalMember.findByIdAndUpdate(
+          counterDoc._id,
+          { $inc: decrObj }
+        );
+      }
+    }
+
+    await User.findByIdAndDelete(req.params.id);
+    res.json({ message: 'Member deleted successfully and subject count updated.' });
+  } catch (err) {
+    next(err);
+  }
+});
+
+
+// GET /api/auth/students - Fetch all students for admin management
+router.get('/students', auth, adminOnly, async (req, res, next) => {
+  try {
+    const students = await User.find({ role: 'student' }).sort({ createdAt: -1 }).lean();
+    res.json(students);
+  } catch (err) {
+    next(err);
+  }
+});
+
+// GET /api/auth/students/:id/purchases - Fetch purchases for a student
+router.get('/students/:id/purchases', auth, adminOnly, async (req, res, next) => {
+  try {
+    const purchases = await Purchase.find({ user: req.params.id })
+      .sort({ createdAt: -1 })
+      .lean();
+
+    // Map and populate items manually to resolve the refPath correctly
+    const testSeriesIds = purchases
+      .filter((p) => p.itemType === 'TestSeries')
+      .map((p) => p.itemId);
+    const courseIds = purchases
+      .filter((p) => p.itemType === 'Course')
+      .map((p) => p.itemId);
+
+    const [seriesDocs, courseDocs] = await Promise.all([
+      testSeriesIds.length ? TestSeries.find({ _id: { $in: testSeriesIds } }).lean() : [],
+      courseIds.length ? Course.find({ _id: { $in: courseIds } }).lean() : [],
+    ]);
+
+    const seriesMap = new Map(seriesDocs.map((doc) => [String(doc._id), doc]));
+    const courseMap = new Map(courseDocs.map((doc) => [String(doc._id), doc]));
+
+    const enriched = purchases.map((purchase) => {
+      const itemKey = String(purchase.itemId);
+      const item = purchase.itemType === 'Course'
+        ? (courseMap.get(itemKey) || null)
+        : (seriesMap.get(itemKey) || null);
+
+      return {
+        ...purchase,
+        item: item ? { name: item.name || item.title } : { name: 'Unknown Item' }
+      };
+    });
+
+    res.json(enriched);
+  } catch (err) {
+    next(err);
+  }
+});
+
+// GET /api/auth/enrollment-options - Fetch all courses and test series for manual enrollment selection
+router.get('/enrollment-options', auth, adminOnly, async (req, res, next) => {
+  try {
+    const [courses, testSeries] = await Promise.all([
+      Course.find().select('_id name title').lean(),
+      TestSeries.find().select('_id name').lean()
+    ]);
+    res.json({
+      courses: courses.map(c => ({ _id: c._id, name: c.name || c.title })),
+      testSeries: testSeries.map(ts => ({ _id: ts._id, name: ts.name }))
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// POST /api/auth/students/enroll-manual - Manually enroll a student in a course or test series (marked as free purchase)
+router.post('/students/enroll-manual', auth, adminOnly, async (req, res, next) => {
+  try {
+    const { studentId, itemType, itemId } = req.body;
+    if (!studentId || !itemType || !itemId) {
+      return res.status(400).json({ message: 'studentId, itemType, and itemId are required.' });
+    }
+
+    if (!['Course', 'TestSeries'].includes(itemType)) {
+      return res.status(400).json({ message: 'Invalid itemType. Must be Course or TestSeries.' });
+    }
+
+    // Check if student exists
+    const student = await User.findById(studentId);
+    if (!student || student.role !== 'student') {
+      return res.status(404).json({ message: 'Student not found.' });
+    }
+
+    // Check if already enrolled
+    const existingPurchase = await Purchase.findOne({
+      user: studentId,
+      itemType,
+      itemId,
+      status: 'success'
+    });
+
+    if (existingPurchase) {
+      return res.status(400).json({ message: 'Student is already enrolled in this item.' });
+    }
+
+    // Verify item existence and get its name
+    let itemName = '';
+    if (itemType === 'Course') {
+      const course = await Course.findById(itemId);
+      if (!course) return res.status(404).json({ message: 'Course not found.' });
+      itemName = course.name || course.title;
+    } else {
+      const series = await TestSeries.findById(itemId);
+      if (!series) return res.status(404).json({ message: 'Test series not found.' });
+      itemName = series.name;
+    }
+
+    // Create the Purchase record
+    const purchase = new Purchase({
+      user: studentId,
+      itemType,
+      itemId,
+      amount: 0,
+      method: 'free',
+      status: 'success',
+      razorpayOrderId: 'manual-' + Date.now(),
+      razorpayPaymentId: 'manual-pay-' + Date.now(),
+      meta: { manuallyAddedBy: req.user._id }
+    });
+    await purchase.save();
+
+    // Cache the enrollment in the student's User document
+    if (itemType === 'Course') {
+      if (!student.purchasedCourses.includes(itemId)) {
+        student.purchasedCourses.push(itemId);
+      }
+    } else {
+      if (!student.purchasedSeries.includes(itemId)) {
+        student.purchasedSeries.push(itemId);
+      }
+    }
+    await student.save();
+
+    res.json({
+      message: `Successfully enrolled in ${itemName}`,
+      purchase
+    });
+  } catch (err) {
+    next(err);
+  }
+});
 
 module.exports = router;

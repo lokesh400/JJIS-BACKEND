@@ -5,7 +5,12 @@
  * Returns 401 if the user is not logged in.
  */
 const auth = (req, res, next) => {
-  if (req.isAuthenticated()) return next();
+  if (req.isAuthenticated()) {
+    if (req.user.isActive === false) {
+      return res.status(403).json({ message: 'Your account has been deactivated. Please contact the administrator.' });
+    }
+    return next();
+  }
   res.status(401).json({ message: 'Not authenticated. Please log in.' });
 };
 
@@ -16,6 +21,9 @@ const auth = (req, res, next) => {
 const adminOnly = (req, res, next) => {
   if (!req.isAuthenticated()) {
     return res.status(401).json({ message: 'Not authenticated. Please log in.' });
+  }
+  if (req.user.isActive === false) {
+    return res.status(403).json({ message: 'Your account has been deactivated. Please contact the administrator.' });
   }
   if (req.user.role !== 'admin') {
     return res.status(403).json({ message: 'Access denied. Admin only.' });

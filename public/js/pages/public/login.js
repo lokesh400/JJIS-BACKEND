@@ -7,7 +7,7 @@ document.addEventListener('DOMContentLoaded', () => {
     : role === 'teacher'
       ? '/teacher/question-bank'
       : role === 'coordinator'
-        ? '/coordinator/tests'
+        ? '/admin/upload'
         : '/student/dashboard';
   // If already logged in, redirect
   const user = (() => { try { return JSON.parse(sessionStorage.getItem('user') || 'null'); } catch { return null; } })();
@@ -102,5 +102,25 @@ document.addEventListener('DOMContentLoaded', () => {
     fpStep1.classList.add('hidden');
     fpStep2.classList.add('hidden');
     fpStep3.classList.remove('hidden');
+  }
+
+  // Show/Hide password toggle logic
+  const toggleBtn = document.getElementById('toggle-password');
+  const passwordInput = document.getElementById('password');
+  const eyeOpen = document.getElementById('eye-open');
+  const eyeClosed = document.getElementById('eye-closed');
+
+  if (toggleBtn && passwordInput) {
+    toggleBtn.addEventListener('click', () => {
+      const type = passwordInput.getAttribute('type') === 'password' ? 'text' : 'password';
+      passwordInput.setAttribute('type', type);
+      if (type === 'password') {
+        eyeOpen.classList.remove('hidden');
+        eyeClosed.classList.add('hidden');
+      } else {
+        eyeOpen.classList.add('hidden');
+        eyeClosed.classList.remove('hidden');
+      }
+    });
   }
 });

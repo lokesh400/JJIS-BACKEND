@@ -1,4 +1,63 @@
 <!-- Toast container (shared by all pages) -->
 <div id="toast-container"></div>
 
-<!-- Bottom of page scripts always included after page scripts -->
+<style>
+  #toast-container {
+    position: fixed;
+    top: 1.5rem;
+    right: 1.5rem;
+    z-index: 10000;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    pointer-events: none;
+    max-width: 380px;
+    width: calc(100vw - 3rem);
+  }
+
+  .modern-toast {
+    pointer-events: auto;
+    position: relative;
+    border-radius: 1.25rem !important;
+    min-width: 280px;
+    background-color: rgba(9, 9, 11, 0.9) !important;
+    backdrop-filter: blur(24px) !important;
+    -webkit-backdrop-filter: blur(24px) !important;
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+    color: #ffffff !important;
+    box-shadow: 
+      0 20px 40px -5px rgba(0, 0, 0, 0.4),
+      0 0 1px 1px rgba(255, 255, 255, 0.1) inset !important;
+    display: flex;
+    align-items: center;
+    gap: 0.875rem;
+    padding: 0.875rem 1.125rem;
+    
+    /* Animation transition */
+    transform: translateX(120%);
+    opacity: 0;
+    transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.35s ease;
+  }
+
+  .modern-toast.show {
+    transform: translateX(0);
+    opacity: 1;
+  }
+
+  .toast-success {
+    border-left: 4px solid #10b981 !important;
+  }
+
+  .toast-error {
+    border-left: 4px solid #f43f5e !important;
+  }
+
+  .toast-info {
+    border-left: 4px solid #3b82f6 !important;
+  }
+
+  /* Override any old plain text toast style */
+  .toast:not(.modern-toast) {
+    display: none !important;
+  }
+</style>

@@ -2,7 +2,7 @@
  * pages/question-upload.js
  */
 document.addEventListener('DOMContentLoaded', async () => {
-  const user = requireAuth('admin');
+  const user = requireAuthAny(['admin', 'coordinator']);
   if (!user) return;
 
   // ── Populate dropdowns ────────────────────────────────────────────

@@ -38,7 +38,7 @@ function requireAuth(role) {
       : user.role === 'teacher'
         ? '/teacher/question-bank'
         : user.role === 'coordinator'
-          ? '/coordinator/tests'
+          ? '/admin/upload'
         : '/student/dashboard';
     return null;
   }
@@ -68,7 +68,7 @@ function requireAuthAny(roles) {
       : user.role === 'teacher'
         ? '/teacher/question-bank'
         : user.role === 'coordinator'
-          ? '/coordinator/tests'
+          ? '/admin/upload'
         : '/student/dashboard';
     return null;
   }

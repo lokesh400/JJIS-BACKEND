@@ -1,5 +1,5 @@
 document.addEventListener('DOMContentLoaded', async () => {
-  requireAuth('teacher');
+  requireAuthAny(['teacher', 'admin']);
 
   const chapterFilter = document.getElementById('chapter-filter');
   const topicFilter = document.getElementById('topic-filter');

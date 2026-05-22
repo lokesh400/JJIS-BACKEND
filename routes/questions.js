@@ -156,6 +156,21 @@ router.patch('/teacher/:id/difficulty', auth, teacherOnly, async (req, res) => {
   }
 });
 
+// Get total count of questions matching filters
+router.get('/count', auth, async (req, res) => {
+  try {
+    const { subject, chapter, topic } = req.query;
+    const filter = {};
+    if (subject) filter.subject = subject;
+    if (chapter) filter.chapter = chapter;
+    if (topic) filter.topic = topic;
+    const count = await Question.countDocuments(filter);
+    res.json({ count });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
 // Get questions with filters
 router.get('/', auth, async (req, res) => {
   try {
@@ -196,14 +211,24 @@ router.get('/:id', auth, async (req, res) => {
   }
 });
 
-// Upload question (admin only)
-// Uses memory storage + manual Cloudinary upload to the correct subject account
-router.post('/', auth, adminOnly, upload.single('image'), async (req, res) => {
+router.post('/', auth, upload.single('image'), async (req, res) => {
+  if (req.user.role !== 'admin' && req.user.role !== 'coordinator') {
+    return res.status(403).json({ message: 'Access denied.' });
+  }
+
+  const { type, correctOption, correctNumericalAnswer, correctOptions, subject, chapter, topic } = req.body;
+
+  if (req.user.role === 'coordinator') {
+    const isDesignated = (req.user.subjects || []).some(id => String(id) === String(subject));
+    if (!isDesignated) {
+      return res.status(403).json({ message: 'Access denied. You can only upload questions to your designated subjects.' });
+    }
+  }
+
   let uploadResult  = null;
   let cloudPrefix   = null;
 
   try {
-    const { type, correctOption, correctNumericalAnswer, correctOptions, subject, chapter, topic } = req.body;
 
     if (!req.file) {
       return res.status(400).json({ message: 'Question image is required' });

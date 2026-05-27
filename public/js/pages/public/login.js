@@ -7,7 +7,7 @@ document.addEventListener('DOMContentLoaded', () => {
     : role === 'teacher'
       ? '/teacher/question-bank'
       : role === 'coordinator'
-        ? '/admin/upload'
+        ? '/admin/dpp'
         : '/student/dashboard';
   // If already logged in, redirect
   const user = (() => { try { return JSON.parse(sessionStorage.getItem('user') || 'null'); } catch { return null; } })();

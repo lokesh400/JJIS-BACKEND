@@ -63,8 +63,23 @@ const testSchema = new mongoose.Schema({
   // 'standard' → MCQ+Numerical paper; 'jee-advanced' → MCQ+Numerical+MSQ paper
   testType: {
     type: String,
-    enum: ['standard', 'jee-advanced'],
+    enum: ['standard', 'jee-advanced', 'dpp'],
     default: 'standard',
+  },
+  subject: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Subject',
+    default: null,
+  },
+  chapter: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Chapter',
+    default: null,
+  },
+  topic: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Topic',
+    default: null,
   },
   createdBy: {
     type: mongoose.Schema.Types.ObjectId,

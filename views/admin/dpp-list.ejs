@@ -1,0 +1,123 @@
+<%- include('../partials/head', { title: 'Daily Practice Problems (DPP)' }) %>
+<body class="min-h-screen bg-slate-50 text-gray-900">
+  <%- include('../partials/navbar') %>
+  <%- include('../partials/sidebar') %>
+
+<div class="md:ml-60 pt-14 min-h-screen page-body">
+    <div class="page-header px-6 md:px-8 py-7 fade-up" style="background: linear-gradient(135deg, #0f766e 0%, #115e59 100%);">
+      <p class="text-white/50 text-xs font-semibold uppercase tracking-widest mb-1">Coordinator Workspace</p>
+      <h1 class="text-2xl md:text-3xl font-bold text-white">Daily Practice Problems (DPPs)</h1>
+      <p class="text-white/60 text-sm mt-1">Create, assign, and manage daily practice problems for students</p>
+    </div>
+
+    <div class="p-6 md:p-8">
+    <div class="bg-white/70 backdrop-blur border border-white rounded-2xl p-4 md:p-5 shadow-sm mb-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div>
+        <p class="text-xs uppercase tracking-wider text-teal-600 font-bold">DPP Manager</p>
+        <p class="text-gray-700 text-sm mt-1">Easily filter through all created DPPs or create a new one instantly.</p>
+      </div>
+      <div class="flex items-center gap-3 flex-wrap w-full md:w-auto">
+        <!-- Search bar -->
+        <div class="relative flex-1 md:flex-none">
+          <input type="text" id="search-dpp" placeholder="Search DPPs by name..." 
+                 class="w-full md:w-80 pl-9 pr-4 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 text-sm bg-white shadow-sm transition-all"/>
+          <svg class="w-4 h-4 text-gray-400 absolute left-3 top-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+          </svg>
+        </div>
+        <button onclick="toggleCreate()"
+                class="flex items-center gap-2 px-4 py-2 bg-teal-600 text-white rounded-xl font-medium hover:bg-teal-700 transition shadow-sm w-full md:w-auto justify-center">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+          Create DPP
+        </button>
+      </div>
+    </div>
+
+    <!-- Create Form -->
+    <div id="create-form-wrap" class="hidden bg-white rounded-2xl shadow-sm border border-gray-100 lift p-6 mb-6">
+      <div class="flex items-center gap-3 mb-4">
+        <h2 class="text-lg font-bold text-gray-800">New DPP</h2>
+        <span class="px-2 py-0.5 text-xs rounded-full font-semibold bg-teal-50 text-teal-700">📝 Daily Practice Problem</span>
+      </div>
+      <form id="create-dpp-form" class="space-y-4">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">DPP Name</label>
+            <input id="dpp-name" type="text" required placeholder="e.g., Kinematics DPP-01"
+                   class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 outline-none"/>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Duration (minutes)</label>
+            <input id="dpp-duration" type="number" min="1" value="45" required
+                   class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 outline-none"/>
+          </div>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Scheduled Date <span class="text-gray-400 font-normal">(optional)</span></label>
+            <input id="dpp-scheduled-date" type="date"
+                   class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 outline-none"/>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Scheduled Time <span class="text-gray-400 font-normal">(optional)</span></label>
+            <input id="dpp-scheduled-time" type="time"
+                   class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 outline-none"/>
+          </div>
+        </div>
+
+        <!-- Subject, Chapter, Topic Dropdowns -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Subject <span class="text-gray-400 font-normal">(optional)</span></label>
+            <select id="sel-subject" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 outline-none">
+              <option value="">Select Subject</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Chapter <span class="text-gray-400 font-normal">(optional)</span></label>
+            <select id="sel-chapter" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 outline-none">
+              <option value="">Select Chapter</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Topic <span class="text-gray-400 font-normal">(optional)</span></label>
+            <select id="sel-topic" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 outline-none">
+              <option value="">Select Topic</option>
+            </select>
+          </div>
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Description <span class="text-gray-400 font-normal">(optional)</span></label>
+          <textarea id="dpp-desc" rows="2" placeholder="Brief description of the practice sheet..."
+                    class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 outline-none"></textarea>
+        </div>
+        <div class="flex items-center justify-end gap-3 pt-2">
+          <button type="button" onclick="toggleCreate()"
+                  class="px-4 py-2 border border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50 transition">
+            Cancel
+          </button>
+          <button type="submit"
+                  class="px-5 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition font-semibold">
+            Create and Build DPP
+          </button>
+        </div>
+      </form>
+    </div>
+
+    <!-- DPPs Loading / Grid -->
+    <div id="loading" class="flex items-center justify-center py-20">
+      <div class="spinner"></div>
+    </div>
+
+    <div id="dpps-grid" class="hidden grid gap-6 grid-cols-1 lg:grid-cols-2"></div>
+    </div>
+  </div>
+
+  <%- include('../partials/toast') %>
+  <script src="/js/api.js"></script>
+  <script src="/js/toast.js"></script>
+  <script src="/js/auth-guard.js"></script>
+  <script src="/js/sidebar.js"></script>
+  <script src="/js/pages/admin/dpp-list.js"></script>
+</body>
+</html>

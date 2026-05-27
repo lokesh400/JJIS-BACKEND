@@ -62,7 +62,7 @@ function filterTestBySubjectForTeacher(testDoc, subjectId) {
 router.get('/admin/all', auth, testManagerOnly, async (req, res) => {
   try {
     const teacherSubjectId = getTeacherSubjectId(req.currentUser);
-    const tests = await Test.find()
+    const tests = await Test.find({ testType: { $ne: 'dpp' } })
       .populate('createdBy', 'name')
       .populate({
         path: 'sections.questions.question',
@@ -77,10 +77,31 @@ router.get('/admin/all', auth, testManagerOnly, async (req, res) => {
   }
 });
 
+// Get all DPPs (admin/coordinator)
+router.get('/admin/dpps', auth, testManagerOnly, async (req, res) => {
+  try {
+    const teacherSubjectId = getTeacherSubjectId(req.currentUser);
+    const query = { testType: 'dpp' };
+    if (teacherSubjectId) {
+      query.subject = teacherSubjectId;
+    }
+    const dpps = await Test.find(query)
+      .populate('createdBy', 'name')
+      .populate({
+        path: 'sections.questions.question',
+        select: 'subject',
+      })
+      .sort({ createdAt: -1 });
+    res.json(dpps);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
 // Create test (admin only)
 router.post('/', auth, testManagerOnly, async (req, res) => {
   try {
-    const { name, description, duration, sections, scheduledAt, mode, syllabus, testType } = req.body;
+    const { name, description, duration, sections, scheduledAt, mode, syllabus, testType, subject, chapter, topic } = req.body;
     const test = new Test({
       name,
       description,
@@ -90,6 +111,9 @@ router.post('/', auth, testManagerOnly, async (req, res) => {
       mode: mode || 'real',
       syllabus: syllabus || '',
       testType: testType || 'standard',
+      subject: subject || null,
+      chapter: chapter || null,
+      topic: topic || null,
       createdBy: req.user._id,
     });
     await test.save();

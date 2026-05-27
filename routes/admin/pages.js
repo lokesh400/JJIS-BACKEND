@@ -16,6 +16,9 @@ router.get("/admin/upload", (req, res) =>
 router.get("/admin/tests", (req, res) =>
   res.render("admin/test-list", { title: "Tests" }),
 );
+router.get("/admin/dpp", (req, res) =>
+  res.render("admin/dpp-list", { title: "Daily Practice Problems (DPP)" }),
+);
 router.get("/admin/tests/:testId", (req, res) =>
   res.render("admin/test-creator", { title: "Test Creator" }),
 );

@@ -78,6 +78,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       const isSubmitted = t.isSubmitted;
       const isPractice  = t.mode === 'practice';
       const isJee       = t.testType === 'jee-advanced';
+      const isDpp       = t.testType === 'dpp';
       const attemptBase = isJee ? 'jee-test' : 'test';
       const now         = new Date();
       const isLocked    = t.scheduledAt && new Date(t.scheduledAt) > now;
@@ -137,6 +138,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                   <p class="font-semibold text-gray-800">${t.name}</p>
                   <span class="px-1.5 py-0.5 text-xs rounded-full font-medium ${modeColor}">${modeLabel}</span>
                   ${isJee ? '<span class="px-1.5 py-0.5 text-xs rounded-full font-medium bg-orange-100 text-orange-700">⚡ JEE Advanced</span>' : ''}
+                  ${isDpp ? '<span class="px-1.5 py-0.5 text-xs rounded-full font-medium bg-emerald-100 text-emerald-700">📝 DPP</span>' : ''}
                 </div>
                 <div class="flex flex-wrap gap-x-3 gap-y-0.5 mt-0.5 text-xs text-gray-400">
                   <span>⏱ ${t.duration} min</span>

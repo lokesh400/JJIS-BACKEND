@@ -9,6 +9,7 @@ const ADMIN_LINKS = [
   { href: '/admin/question-bank',label: 'Question Bank', icon: iconDB() },
   { href: '/admin/upload',       label: 'Upload',        icon: iconUpload() },
   { href: '/admin/tests',        label: 'Tests',         icon: iconFile() },
+  { href: '/admin/dpp',          label: 'DPPs',          icon: iconLayers() },
   { href: '/admin/test-series',  label: 'Test Series',   icon: iconLayers() },
   { href: '/admin/courses/create/new', label: 'Create Course', icon: iconBook() },
   { href: '/admin/battleground', label: 'Battleground', icon: iconFlag() },
@@ -34,6 +35,7 @@ const TEACHER_LINKS = [
 ];
 
 const COORDINATOR_LINKS = [
+  { href: '/admin/dpp',          label: 'DPPs',          icon: iconFile() },
   { href: '/admin/upload', label: 'Upload Questions', icon: iconUpload() },
 ];
 

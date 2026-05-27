@@ -45,6 +45,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       const modeLabel  = t.mode === 'practice' ? '🔁 Practice' : '🎯 Real';
       const modeColor  = t.mode === 'practice' ? 'bg-blue-100 text-blue-700' : 'bg-purple-100 text-purple-700';
       const isJee      = t.testType === 'jee-advanced';
+
       const canManageAdminActions = user.role === 'admin';
       const isCoordinator = user.role === 'coordinator';
       const canEdit = user.role !== 'coordinator';

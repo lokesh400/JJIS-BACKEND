@@ -85,7 +85,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // ── Render ────────────────────────────────────────────────────────
   function renderTest() {
-    document.getElementById('test-title').textContent = test.name;
+    const testPrefix = test.testType === 'dpp' ? '📝 DPP: ' : '';
+    document.getElementById('test-title').textContent = testPrefix + test.name;
     const total = test.sections.reduce((a, s) => a + s.questions.length, 0);
     const modeLabel = test.mode === 'practice' ? '🔁 Practice' : '🎯 Real';
     const schedLabel = test.scheduledAt
@@ -210,6 +211,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         scheduledAt: scheduledVal ? new Date(scheduledVal).toISOString() : null,
         mode,
         syllabus,
+        testType:    test.testType,
       });
       toast.success('Settings saved!');
       renderTest();

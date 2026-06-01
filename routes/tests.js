@@ -248,58 +248,258 @@ async function downloadAnswerKeySectionwiseHandler(req, res) {
     const contentW = doc.page.width - doc.page.margins.left - doc.page.margins.right;
     const left = doc.page.margins.left;
 
-    doc.font('Helvetica-Bold').fontSize(18).text(test.name || 'Test', left, 36, { width: contentW, align: 'center' });
-    doc.moveDown(0.8);
-    doc.font('Helvetica').fontSize(12).text('Section-wise Answer Key', { align: 'center' });
-    doc.moveDown(1.1);
+    // --- Modern Header Card Design ---
+    doc.fillColor('#f3f4f6').roundedRect(left, 30, contentW, 45, 6).fill();
 
+    doc.fillColor('#111827')
+      .font('Helvetica-Bold')
+      .fontSize(13)
+      .text(test.name || 'Test Paper', left + 12, 38, { width: contentW - 140, lineBreak: false });
+
+    doc.fillColor('#4b5563')
+      .font('Helvetica')
+      .fontSize(9)
+      .text('Section-wise Answer Key', left + 12, 54);
+
+    const badgeW = 90;
+    const badgeX = left + contentW - badgeW - 12;
+    doc.fillColor('#3b82f6').roundedRect(badgeX, 39, badgeW, 20, 4).fill();
+    doc.fillColor('#ffffff')
+      .font('Helvetica-Bold')
+      .fontSize(9)
+      .text('ANSWER KEY', badgeX, 45, { width: badgeW, align: 'center' });
+
+    // --- Prepare List of Elements ---
+    const elements = [];
     (test.sections || []).forEach((section, sectionIndex) => {
-      if (sectionIndex > 0) doc.addPage();
-      doc.font('Helvetica-Bold').fontSize(14).text(`Section ${sectionIndex + 1}: ${section.name || 'Untitled Section'}`);
-      doc.moveDown(0.6);
-
-      const rows = (section.questions || []).map((entry, index) => {
-        const q = entry.question || {};
-        let answer = '-';
-
-        if (q.type === 'mcq') answer = q.correctOption || '-';
-        else if (q.type === 'msq') answer = Array.isArray(q.correctOptions) && q.correctOptions.length ? q.correctOptions.join(', ') : '-';
-        else if (q.type === 'numerical') {
-          answer = q.correctNumericalAnswer === null || q.correctNumericalAnswer === undefined
-            ? '-'
-            : String(q.correctNumericalAnswer);
-        }
-
-        return {
-          qNo: `Q${index + 1}`,
-          type: (q.type || '-').toUpperCase(),
-          answer,
-        };
+      elements.push({
+        type: 'section',
+        title: section.name || `Section ${sectionIndex + 1}`,
       });
 
-      if (!rows.length) {
-        doc.font('Helvetica').fontSize(11).fillColor('#6b7280').text('No questions in this section').fillColor('#000000');
-        return;
+      const qList = section.questions || [];
+      if (qList.length === 0) {
+        elements.push({
+          type: 'empty',
+          text: 'No questions in this section',
+        });
+      } else {
+        qList.forEach((entry, index) => {
+          const q = entry.question || {};
+          let answer = '-';
+
+          if (q.type === 'mcq') answer = q.correctOption || '-';
+          else if (q.type === 'msq') answer = Array.isArray(q.correctOptions) && q.correctOptions.length ? q.correctOptions.join(', ') : '-';
+          else if (q.type === 'numerical') {
+            answer = q.correctNumericalAnswer === null || q.correctNumericalAnswer === undefined
+              ? '-'
+              : String(q.correctNumericalAnswer);
+          }
+
+          let shortType = (q.type || '-').toUpperCase();
+          if (shortType === 'NUMERICAL') shortType = 'NUM';
+
+          elements.push({
+            type: 'question',
+            qNo: `Q${index + 1}`,
+            qType: shortType,
+            answer,
+          });
+        });
+      }
+    });
+
+    // --- Dynamic Layout Parameters ---
+    let numCols = 4;
+    let gap = 16;
+    let rowHeight = 18;
+    let headerHeight = 22;
+    let fontSize = 9;
+    
+    // Estimate Heights to dynamically adjust scale
+    const getEstHeight = (el) => {
+      if (el.type === 'section') return headerHeight;
+      if (el.type === 'empty') return rowHeight;
+      return rowHeight;
+    };
+
+    const totalEstHeight = elements.reduce((sum, el) => sum + getEstHeight(el), 0);
+    const colStartY = 90;
+    const availableHeight = doc.page.height - 36 - colStartY; // 842.89 - 36 - 90 = 716.89
+
+    if (totalEstHeight > 4 * availableHeight) {
+      numCols = 5;
+      gap = 12;
+      if (totalEstHeight > 5 * availableHeight) {
+        rowHeight = 14.5;
+        fontSize = 7.5;
+        headerHeight = 18;
+      }
+    }
+
+    const colWidth = (contentW - (numCols - 1) * gap) / numCols;
+
+    // --- Balanced Column Distribution (Greedy with Orphan Avoidance) ---
+    const columnsElements = Array.from({ length: numCols }, () => []);
+    let currentCol = 0;
+    let currentColHeight = 0;
+    const targetColHeight = totalEstHeight / numCols;
+
+    elements.forEach((el, idx) => {
+      const elHeight = getEstHeight(el);
+      let shouldSwitch = false;
+
+      if (currentCol < numCols - 1) {
+        if (currentColHeight + elHeight > targetColHeight) {
+          shouldSwitch = true;
+        }
+        // Avoid orphan headers: if this is a section header and column is already 70% full, switch
+        if (el.type === 'section' && currentColHeight > targetColHeight * 0.7) {
+          shouldSwitch = true;
+        }
       }
 
-      doc.font('Helvetica-Bold').fontSize(11).text('Question', left, doc.y, { width: 120 });
-      doc.text('Type', left + 130, doc.y - 11, { width: 100 });
-      doc.text('Answer', left + 240, doc.y - 11, { width: contentW - 240 });
-      doc.moveDown(0.2);
-      doc.moveTo(left, doc.y).lineTo(left + contentW, doc.y).strokeColor('#d1d5db').stroke();
-      doc.moveDown(0.5);
+      if (shouldSwitch) {
+        currentCol++;
+        currentColHeight = 0;
+      }
 
-      rows.forEach((row) => {
-        const y = doc.y;
-        if (y > doc.page.height - 60) {
-          doc.addPage();
+      columnsElements[currentCol].push(el);
+      currentColHeight += elHeight;
+    });
+
+    // --- Draw the Balanced Columns ---
+    columnsElements.forEach((colElements, colIdx) => {
+      const colX = left + colIdx * (colWidth + gap);
+      let currentY = colStartY;
+      
+      // Calculate total height of elements in this column to draw a card container
+      const colHeight = colElements.reduce((sum, el) => sum + getEstHeight(el), 0);
+      
+      // Draw elegant column container card
+      doc.fillColor('#ffffff')
+        .roundedRect(colX, colStartY, colWidth, colHeight, 6)
+        .fill();
+        
+      doc.lineWidth(0.8)
+        .roundedRect(colX, colStartY, colWidth, colHeight, 6)
+        .strokeColor('#e2e8f0')
+        .stroke();
+
+      let qIndexInCol = 0; // For alternating background zebra-striping
+
+      colElements.forEach((el) => {
+        const elHeight = getEstHeight(el);
+
+        if (el.type === 'section') {
+          // Draw a sleek section header banner with solid background
+          doc.fillColor('#1e3a8a') // Primary dark blue background for section
+            .rect(colX, currentY, colWidth, elHeight)
+            .fill();
+            
+          // Draw subtle top/bottom borders for the banner
+          doc.lineWidth(0.5)
+            .moveTo(colX, currentY)
+            .lineTo(colX + colWidth, currentY)
+            .strokeColor('#172554')
+            .stroke();
+            
+          doc.moveTo(colX, currentY + elHeight)
+            .lineTo(colX + colWidth, currentY + elHeight)
+            .strokeColor('#172554')
+            .stroke();
+
+          // Title text in white
+          doc.fillColor('#ffffff')
+            .font('Helvetica-Bold')
+            .fontSize(fontSize)
+            .text(el.title, colX + 8, currentY + (elHeight - fontSize) / 2 - 1, { width: colWidth - 16, lineBreak: false });
+            
+          currentY += elHeight;
+        } else if (el.type === 'empty') {
+          doc.fillColor('#6b7280')
+            .font('Helvetica-Oblique')
+            .fontSize(fontSize - 0.5)
+            .text(el.text, colX + 8, currentY + (elHeight - fontSize) / 2, { width: colWidth - 16 });
+          
+          currentY += elHeight;
+        } else {
+          // Question Row
+          // Draw zebra striping
+          if (qIndexInCol % 2 === 0) {
+            doc.fillColor('#f8fafc') // Slate 50 for very premium light blue-gray tone
+              .rect(colX + 0.5, currentY + 0.5, colWidth - 1, elHeight - 1)
+              .fill();
+          }
+          
+          // Draw a very subtle bottom border for rows (except if it's the last element of the column)
+          doc.lineWidth(0.4)
+            .moveTo(colX, currentY + elHeight)
+            .lineTo(colX + colWidth, currentY + elHeight)
+            .strokeColor('#f1f5f9')
+            .stroke();
+
+          // Pad question number (e.g. Q01, Q09) for perfect vertical alignment
+          const padQNo = el.qNo.replace(/^Q(\d)$/, 'Q0$1');
+
+          // Question number label
+          doc.fillColor('#475569') // Cool gray slate
+            .font('Helvetica-Bold')
+            .fontSize(fontSize - 0.5)
+            .text(padQNo, colX + 8, currentY + (elHeight - (fontSize - 0.5)) / 2 - 0.5);
+
+          // Type badge card (MCQ, MSQ, NUM)
+          let bgBadge = '#e2e8f0';
+          let textBadge = '#475569';
+          if (el.qType === 'MCQ') {
+            bgBadge = '#e0f2fe'; // light sky blue
+            textBadge = '#0369a1';
+          } else if (el.qType === 'MSQ') {
+            bgBadge = '#faf5ff'; // light purple
+            textBadge = '#7e22ce';
+          } else if (el.qType === 'NUM') {
+            bgBadge = '#fef3c7'; // light amber
+            textBadge = '#b45309';
+          }
+
+          const badgeW = numCols === 5 ? 20 : 24;
+          const badgeH = 10;
+          const badgeX = colX + (numCols === 5 ? 30 : 34);
+          const badgeY = currentY + (elHeight - badgeH) / 2;
+
+          doc.fillColor(bgBadge)
+            .roundedRect(badgeX, badgeY, badgeW, badgeH, 2)
+            .fill();
+
+          doc.fillColor(textBadge)
+            .font('Helvetica-Bold')
+            .fontSize(6)
+            .text(el.qType, badgeX, badgeY + 2, { width: badgeW, align: 'center' });
+
+          // Correct Answer label with dynamic font adjustment
+          const answerX = colX + (numCols === 5 ? 56 : 64);
+          const answerW = colWidth - (numCols === 5 ? 60 : 70);
+          const ansFontSize = el.answer.length > 7 ? fontSize - 1 : fontSize;
+
+          doc.fillColor('#0f172a') // Dark slate
+            .font('Helvetica-Bold')
+            .fontSize(ansFontSize)
+            .text(el.answer, answerX, currentY + (elHeight - ansFontSize) / 2 - 0.5, { width: answerW, lineBreak: false });
+
+          currentY += elHeight;
+          qIndexInCol++;
         }
-        doc.font('Helvetica').fontSize(11).fillColor('#111827').text(row.qNo, left, doc.y, { width: 120 });
-        doc.text(row.type, left + 130, y, { width: 100 });
-        doc.text(row.answer, left + 240, y, { width: contentW - 240 });
-        doc.moveDown(0.45);
       });
     });
+
+    // --- Draw Footer ---
+    const footerY = doc.page.height - 24;
+    doc.fillColor('#94a3b8') // light slate gray
+      .font('Helvetica')
+      .fontSize(7)
+      .text('Generated automatically by Garud Classes Test Portal', left, footerY, { width: contentW / 2, align: 'left' });
+      
+    doc.text('Page 1 of 1', left + contentW / 2, footerY, { width: contentW / 2, align: 'right' });
 
     doc.end();
   } catch (error) {

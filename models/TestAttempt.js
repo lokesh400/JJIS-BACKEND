@@ -58,6 +58,10 @@ const testAttemptSchema = new mongoose.Schema({
     default: null,
   },
   answers: [answerSchema],
+  rollNo: {
+    type: String,
+    sparse: true,
+  },
   totalScore: {
     type: Number,
     default: 0,

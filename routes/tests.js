@@ -11,6 +11,15 @@ const User = require('../models/User');
 
 const router = express.Router();
 
+async function adminOrCoordinator(req, res, next) {
+  const currentUser = await resolveCurrentUser(req);
+  if (!currentUser || !['admin', 'coordinator'].includes(currentUser.role)) {
+    return res.status(403).json({ message: 'Admin/Coordinator access only.' });
+  }
+  req.currentUser = currentUser;
+  next();
+}
+
 async function resolveCurrentUser(req) {
   if (req.user && req.user._id) return req.user;
   const sessionUserId = req.session?.passport?.user;
@@ -847,7 +856,7 @@ router.delete(
 );
 
 // Get test results/attempts (admin)
-router.get('/:id/results', auth, adminOnly, async (req, res) => {
+router.get('/:id/results', auth, adminOrCoordinator, async (req, res) => {
   try {
     const attempts = await TestAttempt.find({ test: req.params.id, isSubmitted: true })
       .populate('user', 'name email')
@@ -860,7 +869,7 @@ router.get('/:id/results', auth, adminOnly, async (req, res) => {
 });
 
 // Get a single student's full attempt detail (admin)
-router.get('/:id/results/:attemptId', auth, adminOnly, async (req, res) => {
+router.get('/:id/results/:attemptId', auth, adminOrCoordinator, async (req, res) => {
   try {
     const attempt = await TestAttempt.findOne({
       _id: req.params.attemptId,
@@ -1202,6 +1211,391 @@ router.get('/:id/my-result', auth, async (req, res) => {
 
     res.json({ attempt, test });
   } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// Export test results to CSV
+router.get('/:id/export/csv', auth, adminOrCoordinator, async (req, res) => {
+  try {
+    const Test = require('../models/Test');
+    const TestAttempt = require('../models/TestAttempt');
+    const User = require('../models/User');
+
+    const test = await Test.findById(req.params.id);
+    if (!test) {
+      return res.status(404).json({ message: 'Test not found' });
+    }
+
+    const attempts = await TestAttempt.find({ test: test._id, isSubmitted: true })
+      .populate('user', 'name email rollNo')
+      .populate('batch', 'name')
+      .sort({ totalScore: -1 });
+
+    const testSections = test.sections || [];
+
+    const getSafeId = (val) => {
+      if (!val) return '';
+      if (val._id) return val._id.toString();
+      return val.toString();
+    };
+
+    const rowsData = attempts.map((r, index) => {
+      const studentName = r.user?.name || `Student Roll ${r.rollNo}`;
+      const studentEmail = r.user?.email || `${r.rollNo}@garud.com`;
+      const rollNo = r.rollNo || r.user?.rollNo || '—';
+      const batchName = r.batch?.name || '—';
+
+      const sectionStats = {};
+      let totalCorrect = 0;
+      let totalIncorrect = 0;
+      let totalAttempted = 0;
+      let totalPositive = 0;
+      let totalNegative = 0;
+
+      testSections.forEach((sec) => {
+        const secIdStr = getSafeId(sec._id);
+        let secCorrect = 0;
+        let secIncorrect = 0;
+        let secAttempted = 0;
+        let secPositiveScore = 0;
+        let secNegativeScore = 0;
+
+        sec.questions.forEach((qEntry) => {
+          const qIdStr = getSafeId(qEntry.question);
+          const ans = (r.answers || []).find(a => 
+            a.question && getSafeId(a.question) === qIdStr && 
+            a.sectionId && getSafeId(a.sectionId) === secIdStr
+          );
+
+          if (ans) {
+            const isAttempt = !!(
+              ans.selectedOption || 
+              (ans.selectedOptions && ans.selectedOptions.length > 0) || 
+              ans.numericalAnswer !== null
+            );
+
+            if (isAttempt) {
+              secAttempted++;
+              if (ans.isCorrect) {
+                secCorrect++;
+                secPositiveScore += qEntry.positiveMarks || 4;
+              } else {
+                secIncorrect++;
+                secNegativeScore += qEntry.negativeMarks || 1;
+              }
+            }
+          }
+        });
+
+        totalCorrect += secCorrect;
+        totalIncorrect += secIncorrect;
+        totalAttempted += secAttempted;
+        totalPositive += secPositiveScore;
+        totalNegative += secNegativeScore;
+
+        sectionStats[sec.name] = {
+          correct: secCorrect,
+          incorrect: secIncorrect,
+          attempted: secAttempted,
+          score: secPositiveScore - secNegativeScore
+        };
+      });
+
+      const rawScore = r.totalScore;
+      const maxScore = r.maxScore || 0;
+      const pct = maxScore > 0 ? ((rawScore / maxScore) * 100).toFixed(2) : '0.00';
+
+      return {
+        rank: index + 1,
+        studentName,
+        studentEmail,
+        rollNo,
+        batchName,
+        sectionStats,
+        totalCorrect,
+        totalIncorrect,
+        totalAttempted,
+        totalPositive,
+        totalNegative,
+        rawScore,
+        maxScore,
+        pct
+      };
+    });
+
+    let csvHeader = 'Rank,Roll Number,Student Name,Email,Batch';
+    testSections.forEach(sec => {
+      csvHeader += `,${sec.name} Correct,${sec.name} Incorrect,${sec.name} Attempted,${sec.name} Score`;
+    });
+    csvHeader += ',Total Correct,Total Incorrect,Total Attempted,Total Positive Marks,Total Negative Marks,Raw Score,Max Score,Percentage (%)\n';
+
+    let csvContent = csvHeader;
+    rowsData.forEach(row => {
+      let line = `"${row.rank}","${row.rollNo}","${row.studentName}","${row.studentEmail}","${row.batchName}"`;
+      testSections.forEach(sec => {
+        const stats = row.sectionStats[sec.name];
+        line += `,"${stats.correct}","${stats.incorrect}","${stats.attempted}","${stats.score}"`;
+      });
+      line += `,"${row.totalCorrect}","${row.totalIncorrect}","${row.totalAttempted}","${row.totalPositive}","${row.totalNegative}","${row.rawScore}","${row.maxScore}","${row.pct}"\n`;
+      csvContent += line;
+    });
+
+    res.setHeader('Content-Type', 'text/csv');
+    res.setHeader('Content-Disposition', `attachment; filename=results-${test.name.replace(/\s+/g, '_')}.csv`);
+    res.status(200).send(csvContent);
+  } catch (error) {
+    console.error('[EXPORT CSV ERROR]:', error);
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// Export test results to Excel
+router.get('/:id/export/excel', auth, adminOrCoordinator, async (req, res) => {
+  try {
+    const Test = require('../models/Test');
+    const TestAttempt = require('../models/TestAttempt');
+    const User = require('../models/User');
+
+    const test = await Test.findById(req.params.id);
+    if (!test) {
+      return res.status(404).json({ message: 'Test not found' });
+    }
+
+    const attempts = await TestAttempt.find({ test: test._id, isSubmitted: true })
+      .populate('user', 'name email rollNo')
+      .populate('batch', 'name')
+      .sort({ totalScore: -1 });
+
+    const testSections = test.sections || [];
+
+    const getSafeId = (val) => {
+      if (!val) return '';
+      if (val._id) return val._id.toString();
+      return val.toString();
+    };
+
+    const rowsData = attempts.map((r, index) => {
+      const studentName = r.user?.name || `Student Roll ${r.rollNo}`;
+      const studentEmail = r.user?.email || `${r.rollNo}@garud.com`;
+      const rollNo = r.rollNo || r.user?.rollNo || '—';
+      const batchName = r.batch?.name || '—';
+
+      const sectionStats = {};
+      let totalCorrect = 0;
+      let totalIncorrect = 0;
+      let totalAttempted = 0;
+      let totalPositive = 0;
+      let totalNegative = 0;
+
+      testSections.forEach((sec) => {
+        const secIdStr = getSafeId(sec._id);
+        let secCorrect = 0;
+        let secIncorrect = 0;
+        let secAttempted = 0;
+        let secPositiveScore = 0;
+        let secNegativeScore = 0;
+
+        sec.questions.forEach((qEntry) => {
+          const qIdStr = getSafeId(qEntry.question);
+          const ans = (r.answers || []).find(a => 
+            a.question && getSafeId(a.question) === qIdStr && 
+            a.sectionId && getSafeId(a.sectionId) === secIdStr
+          );
+
+          if (ans) {
+            const isAttempt = !!(
+              ans.selectedOption || 
+              (ans.selectedOptions && ans.selectedOptions.length > 0) || 
+              ans.numericalAnswer !== null
+            );
+
+            if (isAttempt) {
+              secAttempted++;
+              if (ans.isCorrect) {
+                secCorrect++;
+                secPositiveScore += qEntry.positiveMarks || 4;
+              } else {
+                secIncorrect++;
+                secNegativeScore += qEntry.negativeMarks || 1;
+              }
+            }
+          }
+        });
+
+        totalCorrect += secCorrect;
+        totalIncorrect += secIncorrect;
+        totalAttempted += secAttempted;
+        totalPositive += secPositiveScore;
+        totalNegative += secNegativeScore;
+
+        sectionStats[sec.name] = {
+          correct: secCorrect,
+          incorrect: secIncorrect,
+          attempted: secAttempted,
+          score: secPositiveScore - secNegativeScore
+        };
+      });
+
+      const rawScore = r.totalScore;
+      const maxScore = r.maxScore || 0;
+      const pct = maxScore > 0 ? ((rawScore / maxScore) * 100).toFixed(2) : '0.00';
+
+      return {
+        rank: index + 1,
+        studentName,
+        studentEmail,
+        rollNo,
+        batchName,
+        sectionStats,
+        totalCorrect,
+        totalIncorrect,
+        totalAttempted,
+        totalPositive,
+        totalNegative,
+        rawScore,
+        maxScore,
+        pct
+      };
+    });
+
+    let html = `
+      <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
+      <head>
+        <!--[if gte mso 9]>
+        <xml>
+          <x:ExcelWorkbook>
+            <x:ExcelWorksheets>
+              <x:ExcelWorksheet>
+                <x:Name>OMR Results</x:Name>
+                <x:WorksheetOptions>
+                  <x:DisplayGridlines/>
+                </x:WorksheetOptions>
+              </x:ExcelWorksheet>
+            </x:ExcelWorksheets>
+          </x:ExcelWorkbook>
+        </xml>
+        <![endif]-->
+        <style>
+          table { border-collapse: collapse; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; font-size: 11pt; }
+          td, th { border: 1px solid #cbd5e1; padding: 8px 12px; text-align: center; }
+          .header-title { background-color: #1e3a8a; color: #ffffff; font-size: 16pt; font-weight: bold; height: 40px; text-align: left; }
+          .meta-row { background-color: #f8fafc; font-size: 10pt; color: #64748b; text-align: left; border-bottom: 2px solid #cbd5e1; }
+          .col-hdr { background-color: #334155; color: #ffffff; font-weight: bold; }
+          .sec-hdr { background-color: #475569; color: #ffffff; font-weight: bold; }
+          .rank-1 { background-color: #fef08a; font-weight: bold; }
+          .rank-2 { background-color: #f3f4f6; font-weight: bold; }
+          .rank-3 { background-color: #ffedd5; font-weight: bold; }
+          .stat-correct { background-color: #dcfce7; color: #15803d; }
+          .stat-incorrect { background-color: #fee2e2; color: #b91c1c; }
+          .stat-attempted { background-color: #faf5ff; color: #6b21a8; }
+          .stat-score { background-color: #f8fafc; font-weight: bold; }
+          .overall-cell { background-color: #eff6ff; font-weight: bold; }
+          .text-left { text-align: left; }
+        </style>
+      </head>
+      <body>
+        <table>
+          <tr>
+            <th colspan="${5 + testSections.length * 4 + 8}" class="header-title">🦅 GARUD CLASSES — OMR TEST RESULTS LEADERBOARD</th>
+          </tr>
+          <tr class="meta-row">
+            <td colspan="${5 + testSections.length * 4 + 8}" class="text-left">
+              <strong>Test Name:</strong> ${test.name} | 
+              <strong>Exported At:</strong> ${new Date().toLocaleString()} | 
+              <strong>Total Records:</strong> ${rowsData.length}
+            </td>
+          </tr>
+          <tr>
+            <th rowspan="2" class="col-hdr">Rank</th>
+            <th rowspan="2" class="col-hdr">Roll Number</th>
+            <th rowspan="2" class="col-hdr">Student Name</th>
+            <th rowspan="2" class="col-hdr">Email</th>
+            <th rowspan="2" class="col-hdr">Batch</th>
+    `;
+
+    testSections.forEach(sec => {
+      html += `<th colspan="4" class="sec-hdr">${sec.name}</th>`;
+    });
+
+    html += `
+            <th colspan="8" class="col-hdr" style="background-color: #1d4ed8;">Overall Performance Summary</th>
+          </tr>
+          <tr>
+    `;
+
+    testSections.forEach(() => {
+      html += `
+        <th class="col-hdr">Correct</th>
+        <th class="col-hdr">Incorrect</th>
+        <th class="col-hdr">Attempted</th>
+        <th class="col-hdr">Score</th>
+      `;
+    });
+
+    html += `
+            <th class="col-hdr" style="background-color: #1e40af;">Total Correct</th>
+            <th class="col-hdr" style="background-color: #1e40af;">Total Incorrect</th>
+            <th class="col-hdr" style="background-color: #1e40af;">Total Attempted</th>
+            <th class="col-hdr" style="background-color: #1e40af;">Positive Marks</th>
+            <th class="col-hdr" style="background-color: #b91c1c;">Negative Marks</th>
+            <th class="col-hdr" style="background-color: #1e40af;">Raw Score</th>
+            <th class="col-hdr" style="background-color: #1e40af;">Max Score</th>
+            <th class="col-hdr" style="background-color: #1e40af;">Accuracy (%)</th>
+          </tr>
+    `;
+
+    rowsData.forEach(row => {
+      let rankClass = '';
+      if (row.rank === 1) rankClass = ' class="rank-1"';
+      else if (row.rank === 2) rankClass = ' class="rank-2"';
+      else if (row.rank === 3) rankClass = ' class="rank-3"';
+
+      html += `
+        <tr>
+          <td${rankClass}>${row.rank}</td>
+          <td>'${row.rollNo}</td>
+          <td class="text-left">${row.studentName}</td>
+          <td class="text-left">${row.studentEmail}</td>
+          <td>${row.batchName}</td>
+      `;
+
+      testSections.forEach(sec => {
+        const stats = row.sectionStats[sec.name];
+        html += `
+          <td class="stat-correct">${stats.correct}</td>
+          <td class="stat-incorrect">${stats.incorrect}</td>
+          <td class="stat-attempted">${stats.attempted}</td>
+          <td class="stat-score">${stats.score}</td>
+        `;
+      });
+
+      const pctStyle = parseFloat(row.pct) >= 60.0 ? 'color: #166534; background-color: #dcfce7;' : 'color: #991b1b; background-color: #fee2e2;';
+
+      html += `
+          <td class="overall-cell">${row.totalCorrect}</td>
+          <td class="overall-cell">${row.totalIncorrect}</td>
+          <td class="overall-cell">${row.totalAttempted}</td>
+          <td class="overall-cell" style="color: #166534;">+${row.totalPositive}</td>
+          <td class="overall-cell" style="color: #b91c1c;">-${row.totalNegative}</td>
+          <td class="overall-cell" style="font-weight: bold; background-color: #dbeafe;">${row.rawScore}</td>
+          <td class="overall-cell">${row.maxScore}</td>
+          <td class="overall-cell" style="${pctStyle}">${row.pct}%</td>
+        </tr>
+      `;
+    });
+
+    html += `
+        </table>
+      </body>
+      </html>
+    `;
+
+    res.setHeader('Content-Type', 'application/vnd.ms-excel');
+    res.setHeader('Content-Disposition', `attachment; filename=results-${test.name.replace(/\s+/g, '_')}.xls`);
+    res.status(200).send(html);
+  } catch (error) {
+    console.error('[EXPORT EXCEL ERROR]:', error);
     res.status(500).json({ message: error.message });
   }
 });

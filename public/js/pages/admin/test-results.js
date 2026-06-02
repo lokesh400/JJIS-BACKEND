@@ -2,11 +2,27 @@
  * pages/test-results.js  — admin: leaderboard + per-student detail drawer
  */
 document.addEventListener('DOMContentLoaded', async () => {
-  const user = requireAuth('admin');
+  const user = requireAuthAny(['admin', 'coordinator']);
   if (!user) return;
 
   const parts  = window.location.pathname.split('/');
   const testId = parts[3]; // /admin/tests/:testId/results
+
+  // Bind click listeners for export buttons
+  const btnExportCsv = document.getElementById('btn-export-csv');
+  const btnExportExcel = document.getElementById('btn-export-excel');
+
+  if (btnExportCsv) {
+    btnExportCsv.addEventListener('click', () => {
+      window.location.href = `/api/tests/${testId}/export/csv`;
+    });
+  }
+
+  if (btnExportExcel) {
+    btnExportExcel.addEventListener('click', () => {
+      window.location.href = `/api/tests/${testId}/export/excel`;
+    });
+  }
 
   // ── Helpers ─────────────────────────────────────────────────────
   function fmt(sec) {

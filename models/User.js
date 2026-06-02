@@ -57,6 +57,11 @@ const userSchema = new mongoose.Schema({
     trim: true,
   },
   // Quick-access list of purchased TestSeries ids.
+  rollNo: {
+    type: String,
+    sparse: true,
+    unique: true,
+  },
   // Source of truth is the Purchase collection; this is a denormalised cache
   // for fast "has this user bought X?" checks without extra DB queries.
   purchasedSeries: [{

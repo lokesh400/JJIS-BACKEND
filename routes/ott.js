@@ -1,7 +1,7 @@
 const express = require('express');
 const Purchase = require('../models/Purchase');
 const Course = require('../models/Course');
-const { getSignedR2Url } = require('../config/r2');
+// const { getSignedR2Url } = require('../config/r2');
 const { auth } = require('../middleware/auth');
 
 const router = express.Router();

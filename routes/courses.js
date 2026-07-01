@@ -3,7 +3,7 @@ const crypto = require('crypto');
 const axios = require('axios');
 const Course = require('../models/Course');
 const Purchase = require('../models/Purchase');
-const { getSignedR2Url } = require('../config/r2');
+// const { getSignedR2Url } = require('../config/r2');
 const { auth, adminOnly } = require('../middleware/auth');
 
 const router = express.Router();
@@ -456,8 +456,8 @@ router.get('/published/:id/lectures/:lectureId/playback', auth, async (req, res)
       return res.status(403).json({ message: 'Purchase this course to open lecture content' });
     }
 
-    let lectures = Array.isArray(course.lectures) ? course.lectures : [];
-    if (lectures.length === 0 && Array.isArray(course.subjects)) {
+    let lectures = Array.isArray(course.lectures) ? [...course.lectures] : [];
+    if (Array.isArray(course.subjects)) {
       course.subjects.forEach(s => {
         if (s && Array.isArray(s.chapters)) {
           s.chapters.forEach(c => {

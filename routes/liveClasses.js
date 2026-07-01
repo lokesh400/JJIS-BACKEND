@@ -50,8 +50,23 @@ function extractYoutubeId(input) {
 // Get all batches
 router.get('/batches', auth, async (req, res) => {
   try {
-    const batches = await Batch.find().sort({ name: 1 });
-    res.json(batches);
+    const { status } = req.query;
+    const allBatches = await Batch.find().sort({ name: 1 });
+    if (!status) {
+      return res.json(allBatches);
+    }
+    // Determine user's enrolled batch IDs
+    const user = req.user;
+    const enrolledIds = user.batches ? user.batches.map(b => b.toString()) : [];
+    let filtered;
+    if (status === 'available') {
+      filtered = allBatches.filter(b => !enrolledIds.includes(b._id.toString()));
+    } else if (status === 'purchased') {
+      filtered = allBatches.filter(b => enrolledIds.includes(b._id.toString()));
+    } else {
+      filtered = allBatches;
+    }
+    res.json(filtered);
   } catch (err) {
     res.status(500).json({ message: err.message });
   }

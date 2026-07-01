@@ -3,171 +3,29 @@ document.addEventListener('DOMContentLoaded', async () => {
   if (!user) return;
 
   const courseId = window.location.pathname.split('/')[3];
-  const lecturesListEl = document.getElementById('lectures-list');
-  const lessonStatsEl = document.getElementById('lesson-stats');
-  const lectureSearchEl = document.getElementById('lecture-search');
-  const filterBtns = Array.from(document.querySelectorAll('[data-filter]'));
+  
+  // DOM Elements
+  const courseNameEl = document.getElementById('course-name');
+  const courseDescEl = document.getElementById('course-desc');
+  const breadcrumbEl = document.getElementById('breadcrumb-container');
+  const tabContainerEl = document.getElementById('tab-container');
+  const dynamicGridEl = document.getElementById('dynamic-grid');
+  const loadingEl = document.getElementById('loading');
+  const mainContentEl = document.getElementById('main-content');
+  const purchaseActionsEl = document.getElementById('purchase-actions');
+
+  // State
   let course = null;
-  let expandedLectureIds = {};
-  let activeFilter = 'all';
-  let searchQuery = '';
+  let currentView = 'course'; // 'course' | 'subject' | 'chapter'
+  let activeSubject = null;
+  let activeChapter = null;
+  
+  // Tab State
+  let courseTab = 'Subjects'; // 'Subjects' | 'Tests'
+  let chapterTab = 'Lectures'; // 'Lectures' | 'DPP'
 
-  function render() {
-    document.getElementById('course-name').textContent = course.name;
-    const desc = document.getElementById('course-desc');
-    if (course.description) {
-      desc.textContent = course.description;
-      desc.classList.remove('hidden');
-    }
-
-    const actions = document.getElementById('purchase-actions');
-    actions.innerHTML = '<span class="px-4 py-2 bg-emerald-400/20 border border-emerald-300/40 text-emerald-100 rounded-xl text-sm font-semibold inline-block backdrop-blur">Access Granted</span>';
-
-    const lectures = Array.isArray(course.lectures) ? course.lectures : [];
-    document.getElementById('lecture-count').textContent = String(lectures.length);
-    const videoCount = lectures.reduce((sum, lecture) => {
-      return sum + (String(lecture?.videoLink || '').trim() ? 1 : 0);
-    }, 0);
-    const attachmentCount = lectures.reduce((sum, lecture) => {
-      const pdfs = Array.isArray(lecture?.pdfs) ? lecture.pdfs : [];
-      return sum + pdfs.length;
-    }, 0);
-
-    const videoCountEl = document.getElementById('video-count');
-    if (videoCountEl) {
-      videoCountEl.textContent = String(videoCount);
-    }
-
-    const attachmentCountEl = document.getElementById('attachment-count');
-    if (attachmentCountEl) {
-      attachmentCountEl.textContent = String(attachmentCount);
-    }
-
-    const progressEl = document.getElementById('curriculum-progress');
-    if (progressEl) {
-      const percent = lectures.length ? Math.round((videoCount / lectures.length) * 100) : 0;
-      progressEl.textContent = `${percent}%`;
-    }
-
-    if (lessonStatsEl) {
-      lessonStatsEl.textContent = `${lectures.length} lessons | ${attachmentCount} attachments`;
-    }
-
-    const filteredLectures = lectures
-      .map((lecture, index) => ({ lecture, index }))
-      .filter(({ lecture }) => {
-        const title = String(lecture?.title || '').toLowerCase();
-        const pdfCount = Array.isArray(lecture?.pdfs) ? lecture.pdfs.length : 0;
-        const hasVideo = !!String(lecture?.videoLink || '').trim();
-        const matchesSearch = !searchQuery || title.includes(searchQuery);
-
-        if (activeFilter === 'video') {
-          return hasVideo && matchesSearch;
-        }
-
-        if (activeFilter === 'notes') {
-          return pdfCount > 0 && matchesSearch;
-        }
-
-        return matchesSearch;
-      });
-
-    const listEl = lecturesListEl;
-
-    if (!lectures.length) {
-      listEl.innerHTML = '<div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-8 text-sm text-gray-500 text-center">No lectures added yet.</div>';
-      return;
-    }
-
-    if (!filteredLectures.length) {
-      listEl.innerHTML = '<div class="coursepw-lecture p-7 text-sm text-slate-500 text-center">No lectures match your current search/filter.</div>';
-      return;
-    }
-
-    listEl.innerHTML = filteredLectures.map(({ lecture, index }) => {
-      const displayIndex = index + 1;
-      const safeTitle = escapeHtml(lecture.title || `Lecture ${displayIndex}`);
-      const pdfs = Array.isArray(lecture.pdfs) ? lecture.pdfs : [];
-      const videoAvailable = !!String(lecture.videoLink || '').trim();
-      const attachmentAvailable = pdfs.length > 0;
-      const isExpanded = !!expandedLectureIds[String(lecture._id)];
-
-      const lectureTag = videoAvailable && attachmentAvailable
-        ? 'Complete Lesson'
-        : (videoAvailable ? 'Video First' : (attachmentAvailable ? 'Notes Available' : 'Coming Soon'));
-
-      return `
-        <article data-lecture-card="${lecture._id}" class="coursepw-lecture p-4 md:p-5 lift">
-          <div class="grid grid-cols-1 md:grid-cols-[170px,minmax(0,1fr)] gap-4">
-            <div class="coursepw-lecture-media rounded-xl p-4 flex flex-col justify-between min-h-[124px]">
-              <p class="text-xs font-semibold uppercase tracking-wide text-orange-700/80">Lecture ${displayIndex}</p>
-              <p class="text-lg leading-none">${videoAvailable ? '&#9658;' : '&#128196;'}</p>
-              <p class="text-xs text-slate-700">${lectureTag}</p>
-            </div>
-
-            <div>
-              <button
-                type="button"
-                data-toggle-lecture="${lecture._id}"
-                class="w-full flex items-start justify-between gap-3 text-left"
-              >
-                <div>
-                  <h3 class="font-semibold text-slate-900">${displayIndex}. ${safeTitle}</h3>
-                  <p class="text-xs text-slate-500 mt-1">${videoAvailable ? 'Video available' : 'No video yet'} | ${pdfs.length} attachments</p>
-                </div>
-                <span class="text-orange-600 text-lg leading-none mt-0.5">${isExpanded ? '&#9650;' : '&#9660;'}</span>
-              </button>
-
-              <div class="${isExpanded ? 'mt-4' : 'hidden'}" data-lecture-body="${lecture._id}">
-                <div class="flex flex-col sm:flex-row gap-2">
-                <button
-                  type="button"
-                  data-open-player="${lecture._id}"
-                  data-action="video"
-                  ${videoAvailable ? '' : 'disabled'}
-                  class="px-4 py-2.5 rounded-xl text-sm font-semibold ${videoAvailable ? 'bg-orange-500 text-white hover:bg-orange-600' : 'bg-slate-200 text-slate-400 cursor-not-allowed'}"
-                >
-                  Watch Lecture
-                </button>
-                <button
-                  type="button"
-                  data-open-player="${lecture._id}"
-                  data-action="attachments"
-                  ${attachmentAvailable ? '' : 'disabled'}
-                  class="px-4 py-2.5 rounded-xl text-sm font-semibold ${attachmentAvailable ? 'bg-white border border-orange-200 text-orange-700 hover:bg-orange-50' : 'bg-slate-200 text-slate-400 cursor-not-allowed border border-slate-200'}"
-                >
-                  Open Notes
-                </button>
-                </div>
-
-                <div class="mt-3">
-                  <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">Attachments</p>
-                  ${attachmentAvailable
-                    ? `<div class="mt-2 space-y-2">${pdfs.map((pdf, pdfIndex) => `
-                      <a
-                        href="${sanitizeUrl(pdf.link)}"
-                        target="_blank"
-                        rel="noopener"
-                        class="flex items-center justify-between gap-3 px-3 py-2.5 rounded-lg border border-orange-100 bg-orange-50/50 hover:bg-orange-50"
-                      >
-                        <span class="text-sm text-slate-800 truncate">${escapeHtml(pdf.title || `Attachment ${pdfIndex + 1}`)}</span>
-                        <span class="text-xs text-orange-700 font-semibold">Open</span>
-                      </a>`).join('')}</div>`
-                    : '<p class="mt-2 text-sm text-slate-500">No attachments for this lecture.</p>'}
-                </div>
-              </div>
-            </div>
-          </div>
-        </article>`;
-    }).join('');
-
-    filterBtns.forEach((btn) => {
-      btn.classList.toggle('is-active', btn.dataset.filter === activeFilter);
-      btn.setAttribute('aria-pressed', btn.dataset.filter === activeFilter ? 'true' : 'false');
-    });
-  }
-
-  async function loadData() {
+  // Initialize
+  async function init() {
     try {
       const [courseResponse] = await Promise.all([
         API.get(`/courses/published/${courseId}`),
@@ -176,78 +34,331 @@ document.addEventListener('DOMContentLoaded', async () => {
       render();
     } catch (error) {
       if (error.status === 403) {
-        toast.error('Purchase this course first to open lecture content');
+        toast.error('Purchase this course first to access it.');
       } else {
         toast.error(error.message || 'Failed to load course');
       }
       window.location.href = '/student/purchase-courses';
     } finally {
-      document.getElementById('loading').classList.add('hidden');
-      document.getElementById('main-content').classList.remove('hidden');
+      loadingEl.classList.add('hidden');
+      mainContentEl.classList.remove('hidden');
     }
   }
 
-  lecturesListEl.addEventListener('click', (event) => {
-    const toggleLectureBtn = event.target.closest('[data-toggle-lecture]');
-    if (toggleLectureBtn) {
-      const lectureId = String(toggleLectureBtn.dataset.toggleLecture || '');
-      if (!lectureId) return;
-      expandedLectureIds = {
-        ...expandedLectureIds,
-        [lectureId]: !expandedLectureIds[lectureId],
-      };
-      render();
+  // Master Render Function
+  function render() {
+    // Header setup
+    courseNameEl.textContent = course.name;
+    if (course.description) {
+      courseDescEl.textContent = course.description;
+      courseDescEl.classList.remove('hidden');
+    }
+    purchaseActionsEl.innerHTML = '<span class="px-3 py-1.5 bg-emerald-400/20 border border-emerald-300/40 text-emerald-100 rounded-lg text-xs font-semibold backdrop-blur">Access Granted</span>';
+
+    renderBreadcrumbs();
+
+    if (currentView === 'course') {
+      renderCourseTabs();
+      if (courseTab === 'Subjects') renderSubjectsGrid();
+      else renderTestsPlaceholder();
+    } 
+    else if (currentView === 'subject') {
+      tabContainerEl.innerHTML = ''; // No tabs for subject view
+      renderChaptersGrid();
+    } 
+    else if (currentView === 'chapter') {
+      renderChapterTabs();
+      if (chapterTab === 'Lectures') renderLecturesList();
+      else renderDPPPlaceholder();
+    }
+  }
+
+  // Navigation / Breadcrumbs
+  function renderBreadcrumbs() {
+    if (currentView === 'course') {
+      breadcrumbEl.classList.add('hidden');
       return;
     }
 
-    const openBtn = event.target.closest('[data-open-player]');
-    if (!openBtn || openBtn.disabled) return;
+    breadcrumbEl.classList.remove('hidden');
+    
+    let html = `<button data-nav="course" class="hover:text-white transition">Subjects</button>`;
+    
+    if (currentView === 'subject' || currentView === 'chapter') {
+      html += `<span>›</span> <button data-nav="subject" class="hover:text-white transition">${escapeHtml(activeSubject.name)}</button>`;
+    }
+    if (currentView === 'chapter') {
+      html += `<span>›</span> <span class="text-white">${escapeHtml(activeChapter.name)}</span>`;
+    }
 
-    const action = openBtn.dataset.action || 'video';
-    const lectureId = openBtn.dataset.openPlayer;
-    if (!lectureId) return;
-    window.location.href = `/student/course/${courseId}/player?lectureId=${encodeURIComponent(lectureId)}&tab=${encodeURIComponent(action)}`;
+    breadcrumbEl.innerHTML = html;
+  }
+
+  breadcrumbEl.addEventListener('click', (e) => {
+    const btn = e.target.closest('[data-nav]');
+    if (!btn) return;
+    const target = btn.dataset.nav;
+    if (target === 'course') {
+      currentView = 'course';
+      activeSubject = null;
+      activeChapter = null;
+    } else if (target === 'subject') {
+      currentView = 'subject';
+      activeChapter = null;
+    }
+    render();
   });
 
-  filterBtns.forEach((btn) => {
-    btn.addEventListener('click', () => {
-      const selectedFilter = btn.dataset.filter || 'all';
-      if (selectedFilter === activeFilter) return;
-      activeFilter = selectedFilter;
-      render();
+  // -------------- Tabs Rendering --------------
+  function renderTabs(tabsArray, activeState, onClickHandler) {
+    tabContainerEl.innerHTML = tabsArray.map(tab => {
+      const isActive = tab === activeState;
+      const baseClass = "px-1 py-3 text-sm font-semibold border-b-2 transition-colors whitespace-nowrap cursor-pointer";
+      const stateClass = isActive ? "border-blue-600 text-blue-600" : "border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300";
+      return `<button data-tab="${tab}" class="${baseClass} ${stateClass}">${tab}</button>`;
+    }).join('');
+
+    // Attach listeners
+    tabContainerEl.querySelectorAll('[data-tab]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        onClickHandler(btn.dataset.tab);
+      });
     });
-  });
+  }
 
-  if (lectureSearchEl) {
-    lectureSearchEl.addEventListener('input', (event) => {
-      searchQuery = String(event.target?.value || '').trim().toLowerCase();
+  function renderCourseTabs() {
+    renderTabs(['Subjects', 'Tests'], courseTab, (selected) => {
+      courseTab = selected;
       render();
     });
   }
 
-  await loadData();
+  function renderChapterTabs() {
+    renderTabs(['Lectures', 'DPP'], chapterTab, (selected) => {
+      chapterTab = selected;
+      render();
+    });
+  }
+
+  // -------------- Course View (Subjects Grid) --------------
+  function renderSubjectsGrid() {
+    const subjects = Array.isArray(course.subjects) ? course.subjects : [];
+    
+    if (subjects.length === 0) {
+      dynamicGridEl.innerHTML = `<p class="text-slate-500 text-sm italic text-center py-8">No subjects available for this course.</p>`;
+      return;
+    }
+
+    dynamicGridEl.className = "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 xl:gap-5";
+    
+    dynamicGridEl.innerHTML = subjects.map((sub, index) => {
+      const acronym = sub.name ? sub.name.substring(0, 2).toUpperCase() : 'SU';
+      const progressPct = 0;
+
+      return `
+        <div data-subject-id="${sub._id || index}" class="subject-card group cursor-pointer bg-white border border-slate-200 rounded-xl p-4 shadow-sm hover:shadow-md transition">
+          <div class="flex items-start gap-3">
+            <div class="w-10 h-10 rounded-lg bg-blue-50 flex items-center justify-center shrink-0">
+              <span class="text-blue-700 font-bold text-sm">${acronym}</span>
+            </div>
+            <h3 class="font-bold text-slate-800 text-sm line-clamp-2 leading-snug flex-1">${escapeHtml(sub.name)}</h3>
+          </div>
+          
+          <div class="mt-4 flex items-center gap-2">
+            <div class="flex-1 h-1.5 bg-slate-100 rounded-full overflow-hidden">
+              <div class="h-full bg-green-500 rounded-full" style="width: ${progressPct}%"></div>
+            </div>
+            <span class="text-[11px] font-bold text-slate-500">${progressPct}%</span>
+            <svg class="w-4 h-4 text-slate-400 group-hover:text-blue-600 transition" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+            </svg>
+          </div>
+        </div>
+      `;
+    }).join('');
+
+    // Attach click listeners to subject cards
+    dynamicGridEl.querySelectorAll('.subject-card').forEach(card => {
+      card.addEventListener('click', () => {
+        const idx = card.dataset.subjectId;
+        activeSubject = subjects.find((s, i) => String(s._id || i) === String(idx));
+        currentView = 'subject';
+        render();
+      });
+    });
+  }
+
+  function renderTestsPlaceholder() {
+    dynamicGridEl.className = "w-full";
+    dynamicGridEl.innerHTML = `
+      <div class="mt-10 flex flex-col items-center justify-center p-10 bg-slate-50 border border-dashed border-slate-300 rounded-2xl">
+        <svg class="w-12 h-12 text-slate-300 mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+        </svg>
+        <h4 class="text-lg font-bold text-slate-700">Tests Coming Soon</h4>
+        <p class="text-sm text-slate-500 text-center mt-1">Mock tests and practice sheets will appear here once published.</p>
+      </div>
+    `;
+  }
+
+  // -------------- Subject View (Chapters Grid) --------------
+  function renderChaptersGrid() {
+    const chapters = Array.isArray(activeSubject.chapters) ? activeSubject.chapters : [];
+
+    if (chapters.length === 0) {
+      dynamicGridEl.innerHTML = `<p class="text-slate-500 text-sm italic text-center py-8">No chapters found for this subject.</p>`;
+      return;
+    }
+
+    dynamicGridEl.className = "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 xl:gap-5";
+
+    dynamicGridEl.innerHTML = chapters.map((chap, index) => {
+      const lectureCount = Array.isArray(chap.lectures) ? chap.lectures.length : 0;
+      const chapterNumStr = String(index + 1).padStart(2, '0');
+      const chapId = chap._id || index;
+
+      return `
+        <div data-chapter-id="${chapId}" class="chapter-card group cursor-pointer bg-white border border-slate-200 rounded-xl p-5 shadow-sm hover:shadow-md transition flex flex-col justify-between">
+          <div>
+            <span class="text-xs font-extrabold text-blue-700 tracking-wide mb-2 inline-block">CH - ${chapterNumStr}</span>
+            <div class="flex items-center justify-between gap-3">
+              <h3 class="font-bold text-slate-800 text-base line-clamp-2 leading-snug flex-1">${escapeHtml(chap.name || `Chapter ${index + 1}`)}</h3>
+              <svg class="w-5 h-5 text-slate-400 group-hover:text-blue-600 transition shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+              </svg>
+            </div>
+          </div>
+          <div class="mt-4">
+            <span class="text-xs font-semibold text-slate-500">Lecture: 0/${lectureCount}</span>
+          </div>
+        </div>
+      `;
+    }).join('');
+
+    dynamicGridEl.querySelectorAll('.chapter-card').forEach(card => {
+      card.addEventListener('click', () => {
+        const idx = card.dataset.chapterId;
+        activeChapter = chapters.find((c, i) => String(c._id || i) === String(idx));
+        currentView = 'chapter';
+        render();
+      });
+    });
+  }
+
+  // -------------- Chapter View (Lectures/DPP) --------------
+  function renderLecturesList() {
+    const lectures = Array.isArray(activeChapter.lectures) ? activeChapter.lectures : [];
+
+    if (lectures.length === 0) {
+      dynamicGridEl.className = "w-full";
+      dynamicGridEl.innerHTML = `<p class="text-slate-500 text-sm italic text-center py-8">No lessons found in this chapter.</p>`;
+      return;
+    }
+
+    dynamicGridEl.className = "grid grid-cols-1 md:grid-cols-2 gap-5";
+
+    dynamicGridEl.innerHTML = lectures.map((lesson, index) => {
+      let dateStr = 'Available';
+      if (lesson.scheduledAt) {
+        dateStr = dayjs(lesson.scheduledAt).format('D MMM YYYY');
+      }
+
+      const hasVideo = !!String(lesson.videoLink || '').trim();
+      const pdfs = Array.isArray(lesson.pdfs) ? lesson.pdfs : [];
+      const hasNotes = pdfs.length > 0;
+
+      // Disable buttons if not available
+      const watchDisabledAttr = hasVideo ? '' : 'disabled';
+      const watchClass = hasVideo 
+        ? 'bg-slate-50 hover:bg-slate-100 text-slate-800 border-slate-200' 
+        : 'bg-slate-100 text-slate-400 border-transparent cursor-not-allowed opacity-60';
+      
+      const notesDisabledAttr = hasNotes ? '' : 'disabled';
+      const notesClass = hasNotes 
+        ? 'bg-slate-50 hover:bg-slate-100 text-slate-800 border-slate-200' 
+        : 'bg-slate-100 text-slate-400 border-transparent cursor-not-allowed opacity-60';
+
+      return `
+        <div class="relative bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm pt-[4px]">
+          <!-- Top Progress Bar -->
+          <div class="top-progress-wrap"><div class="top-progress-fill" style="width: 0%"></div></div>
+          
+          <div class="p-5">
+            <div class="flex items-start gap-4 mb-5">
+              <div class="relative shrink-0">
+                <img src="/images/placeholders/course-placeholder.jpg" onerror="this.src='https://placehold.co/100x100?text=Lec'" alt="Thumbnail" class="w-16 h-16 rounded-lg object-cover bg-slate-100 border border-slate-200">
+                <div class="play-badge">
+                  <svg class="w-3 h-3 ml-[2px]" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+                </div>
+              </div>
+              <div class="flex-1 min-w-0 pt-1">
+                <p class="text-[11px] font-semibold text-slate-500 mb-1">Lecture • ${dateStr}</p>
+                <h3 class="font-bold text-sm text-slate-900 leading-snug line-clamp-2">${escapeHtml(lesson.title)}</h3>
+                <p class="text-xs font-semibold text-slate-400 mt-1.5">2h:00m</p>
+              </div>
+            </div>
+
+            <div class="flex items-center gap-3">
+              <button 
+                data-play="${lesson._id}" 
+                ${watchDisabledAttr}
+                class="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg border text-[13px] font-bold transition ${watchClass}"
+              >
+                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                Watch
+              </button>
+              <button 
+                data-notes="${lesson._id}" 
+                ${notesDisabledAttr}
+                class="flex-1 py-2.5 rounded-lg border text-[13px] font-bold transition ${notesClass}"
+              >
+                Notes & more
+              </button>
+            </div>
+          </div>
+        </div>
+      `;
+    }).join('');
+
+    // Attach Action Listeners
+    dynamicGridEl.querySelectorAll('[data-play]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const id = btn.dataset.play;
+        window.location.href = `/student/course/${courseId}/player?lectureId=${encodeURIComponent(id)}&tab=video`;
+      });
+    });
+
+    dynamicGridEl.querySelectorAll('[data-notes]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const id = btn.dataset.notes;
+        window.location.href = `/student/course/${courseId}/player?lectureId=${encodeURIComponent(id)}&tab=attachments`;
+      });
+    });
+  }
+
+  function renderDPPPlaceholder() {
+    dynamicGridEl.className = "w-full";
+    dynamicGridEl.innerHTML = `
+      <div class="mt-10 flex flex-col items-center justify-center p-10 bg-slate-50 border border-dashed border-slate-300 rounded-2xl">
+        <svg class="w-12 h-12 text-slate-300 mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+        </svg>
+        <h4 class="text-lg font-bold text-slate-700">DPP Coming Soon</h4>
+        <p class="text-sm text-slate-500 text-center mt-1">Daily Practice Problems will be available here.</p>
+      </div>
+    `;
+  }
+
+  // Utilities
+  function escapeHtml(value) {
+    return String(value)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+
+  // Start execution
+  await init();
 });
-
-function sanitizeUrl(link) {
-  const value = String(link || '').trim();
-  if (!value) return '#';
-
-  if (value.startsWith('/')) {
-    return value;
-  }
-
-  if (/^https?:\/\//i.test(value)) {
-    return value;
-  }
-
-  return '#';
-}
-
-function escapeHtml(value) {
-  return String(value)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/\"/g, '&quot;')
-    .replace(/'/g, '&#39;');
-}

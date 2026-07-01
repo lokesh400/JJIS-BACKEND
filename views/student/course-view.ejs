@@ -1,5 +1,5 @@
 <%- include('../partials/head', { title: 'Course Detail' }) %>
-<body class="min-h-screen bg-[#fff9ef] text-slate-900">
+<body class="min-h-screen bg-[#F8FAFC] text-slate-900">
   <%- include('../partials/navbar') %>
   <%- include('../partials/sidebar') %>
 
@@ -7,10 +7,6 @@
     @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Sora:wght@600;700;800&display=swap');
 
     .coursepw-shell {
-      background:
-        radial-gradient(circle at 85% 10%, rgba(244, 167, 66, 0.2), transparent 42%),
-        radial-gradient(circle at 10% 20%, rgba(34, 197, 94, 0.12), transparent 45%),
-        linear-gradient(180deg, #fff7e4 0%, #fffdf6 35%, #fefefe 100%);
       font-family: 'Outfit', sans-serif;
     }
 
@@ -21,165 +17,99 @@
 
     .coursepw-hero {
       border-radius: 1.5rem;
-      background: linear-gradient(125deg, #0f172a 0%, #1e293b 58%, #334155 100%);
-      box-shadow: 0 24px 50px rgba(15, 23, 42, 0.2);
+      background: linear-gradient(125deg, #0F172A 0%, #1E293B 58%, #334155 100%);
+      box-shadow: 0 24px 50px rgba(15, 23, 42, 0.1);
       position: relative;
       overflow: hidden;
     }
 
-    .coursepw-hero::before {
-      content: '';
+    /* Custom Scrollbar for Tab bar */
+    .hide-scrollbar::-webkit-scrollbar {
+      display: none;
+    }
+    .hide-scrollbar {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
+
+    /* Top Progress Bar for Lecture Card */
+    .top-progress-wrap {
+      height: 4px;
+      width: 100%;
+      background-color: #F1F5F9;
       position: absolute;
-      width: 300px;
-      height: 300px;
-      border-radius: 999px;
-      background: rgba(245, 158, 11, 0.25);
-      top: -160px;
-      right: -70px;
-      filter: blur(4px);
+      top: 0;
+      left: 0;
+    }
+    .top-progress-fill {
+      height: 100%;
+      background-color: #22C55E;
     }
 
-    .coursepw-hero::after {
-      content: '';
+    .play-badge {
       position: absolute;
-      width: 220px;
-      height: 220px;
+      bottom: -6px;
+      right: -6px;
+      background-color: #EF4444;
       border-radius: 999px;
-      background: rgba(59, 130, 246, 0.18);
-      bottom: -130px;
-      left: -60px;
-    }
-
-    .coursepw-stat {
-      border: 1px solid rgba(15, 23, 42, 0.07);
-      background: linear-gradient(180deg, #ffffff 0%, #fffaf0 100%);
-      border-radius: 1rem;
-    }
-
-    .coursepw-pill {
-      border: 1px solid #e2e8f0;
-      border-radius: 999px;
-      font-size: 0.75rem;
-      font-weight: 700;
-      padding: 0.35rem 0.8rem;
-      color: #475569;
-      background: #fff;
-    }
-
-    .coursepw-filter.is-active {
+      width: 22px;
+      height: 22px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border: 2px solid #fff;
       color: #fff;
-      border-color: #f97316;
-      background: linear-gradient(120deg, #f97316 0%, #ea580c 100%);
-      box-shadow: 0 10px 24px rgba(249, 115, 22, 0.28);
-    }
-
-    .coursepw-lecture {
-      border: 1px solid #e8edf4;
-      background: #fff;
-      border-radius: 1.2rem;
-    }
-
-    .coursepw-lecture-media {
-      background:
-        linear-gradient(150deg, #ffd6a2 0%, #ffedd5 35%, #fff7ed 100%);
-      border: 1px solid #fed7aa;
-    }
-
-    .coursepw-meta-card {
-      border: 1px solid #e2e8f0;
-      background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
-      border-radius: 1.2rem;
-    }
-
-    @media (max-width: 768px) {
-      .coursepw-hero {
-        border-radius: 1.1rem;
-      }
     }
   </style>
 
   <div class="md:ml-60 pt-14 min-h-screen page-body coursepw-shell">
     <div class="px-4 py-6 md:px-8 md:py-8 max-w-7xl mx-auto">
+      
+      <!-- Hero Section -->
       <div class="coursepw-hero p-5 md:p-7 fade-up">
         <div class="relative z-10">
           <div class="flex items-start gap-3 md:gap-4">
             <button onclick="window.location.href='/student/purchase-courses'"
-                    class="w-10 h-10 md:w-11 md:h-11 flex items-center justify-center rounded-xl bg-white/15 hover:bg-white/25 text-white transition"
+                    class="w-10 h-10 md:w-11 md:h-11 flex items-center justify-center rounded-xl bg-white/15 hover:bg-white/25 text-white transition shrink-0"
                     aria-label="Back">
               &larr;
             </button>
             <div class="flex-1 min-w-0">
-              <p class="text-[11px] md:text-xs font-semibold tracking-[0.2em] uppercase text-slate-200/80">My Learning Space</p>
+              <p class="text-[11px] md:text-xs font-semibold tracking-[0.2em] uppercase text-slate-200/80">Study Room</p>
               <h1 id="course-name" class="coursepw-title text-2xl md:text-3xl lg:text-4xl text-white mt-1"></h1>
               <p id="course-desc" class="text-sm text-slate-200/90 mt-2 hidden max-w-3xl"></p>
-              <div class="mt-4 flex flex-wrap items-center gap-2.5">
-                <span class="px-3 py-1.5 rounded-full bg-amber-300/20 border border-amber-200/35 text-amber-100 text-xs font-semibold">Live + Recorded Learning</span>
-                <span class="px-3 py-1.5 rounded-full bg-cyan-300/20 border border-cyan-200/35 text-cyan-100 text-xs font-semibold">Daily Practice Friendly</span>
-              </div>
+              
+              <!-- Breadcrumbs injected here dynamically via JS -->
+              <div id="breadcrumb-container" class="mt-4 hidden flex items-center gap-2 text-sm text-slate-300 font-semibold"></div>
             </div>
           </div>
           <div id="purchase-actions" class="mt-5"></div>
         </div>
       </div>
 
-      <div id="loading" class="flex items-center justify-center min-h-[58vh]"><div class="spinner"></div></div>
+      <div id="loading" class="flex items-center justify-center min-h-[58vh]"><div class="spinner border-t-blue-600"></div></div>
 
-      <div id="main-content" class="hidden mt-6 md:mt-7">
-        <div class="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr),320px] gap-5 md:gap-6">
-          <main class="space-y-5">
-            <section class="bg-white/90 backdrop-blur-sm border border-orange-100 rounded-2xl p-4 md:p-5 fade-up-1">
-              <div class="flex flex-col lg:flex-row gap-3 lg:items-center lg:justify-between">
-                <div>
-                  <h3 class="coursepw-title text-lg text-slate-900">Course Curriculum</h3>
-                  <p id="lesson-stats" class="text-xs text-slate-500 mt-1">0 lessons | 0 attachments</p>
-                </div>
-                <div class="flex flex-wrap items-center gap-2">
-                  <button type="button" data-filter="all" class="coursepw-filter is-active coursepw-pill">All Lectures</button>
-                  <button type="button" data-filter="video" class="coursepw-filter coursepw-pill">With Video</button>
-                  <button type="button" data-filter="notes" class="coursepw-filter coursepw-pill">With Notes</button>
-                </div>
-              </div>
-              <div class="mt-3">
-                <label for="lecture-search" class="sr-only">Search lecture</label>
-                <input id="lecture-search" type="search" placeholder="Search lecture title..."
-                       class="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-800 placeholder:text-slate-400 focus:border-orange-300" />
-              </div>
-            </section>
-
-            <section id="lectures-list" class="space-y-4 fade-up-2"></section>
-          </main>
-
-          <aside class="space-y-4 fade-up-3">
-            <div class="coursepw-meta-card p-4 md:p-5 xl:sticky xl:top-24">
-              <h4 class="coursepw-title text-base text-slate-900">This Course Includes</h4>
-              <div class="mt-3 space-y-2.5">
-                <div class="coursepw-stat p-3.5 flex items-center justify-between">
-                  <span class="text-sm text-slate-600">Total Lectures</span>
-                  <span id="lecture-count" class="text-sm font-bold text-slate-900">0</span>
-                </div>
-                <div class="coursepw-stat p-3.5 flex items-center justify-between">
-                  <span class="text-sm text-slate-600">Video Lectures</span>
-                  <span id="video-count" class="text-sm font-bold text-slate-900">0</span>
-                </div>
-                <div class="coursepw-stat p-3.5 flex items-center justify-between">
-                  <span class="text-sm text-slate-600">PDF Attachments</span>
-                  <span id="attachment-count" class="text-sm font-bold text-slate-900">0</span>
-                </div>
-              </div>
-
-              <div class="mt-4 rounded-xl border border-slate-200 p-3.5 bg-white">
-                <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">Completion Signal</p>
-                <p id="curriculum-progress" class="text-xl font-extrabold text-slate-900 mt-1">0%</p>
-                <p class="text-xs text-slate-500 mt-1">Based on lectures that currently include a playable video.</p>
-              </div>
-            </div>
-          </aside>
+      <div id="main-content" class="hidden mt-6 md:mt-7 fade-up-1">
+        
+        <!-- Tab Bar Area -->
+        <div class="border-b border-slate-200 mb-6">
+          <div id="tab-container" class="flex items-center gap-6 overflow-x-auto hide-scrollbar pb-px">
+            <!-- Tabs injected dynamically -->
+          </div>
         </div>
+
+        <!-- Dynamic Content Area -->
+        <div id="dynamic-grid" class="w-full">
+            <!-- Grid for Subjects or Chapters or Lectures injected here -->
+        </div>
+
       </div>
     </div>
   </div>
 
   <%- include('../partials/toast') %>
+  <!-- Including dayjs from CDN for date formatting -->
+  <script src="https://cdn.jsdelivr.net/npm/dayjs@1/dayjs.min.js"></script>
   <script src="/js/api.js"></script>
   <script src="/js/toast.js"></script>
   <script src="/js/auth-guard.js"></script>

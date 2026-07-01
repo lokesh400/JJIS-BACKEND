@@ -159,10 +159,10 @@ app.use('/api/reports',     require('./routes/reports'));
 app.use('/api/payments',    require('./routes/payments'));
 app.use('/api/purchase',    require('./routes/purchase'));
 app.use('/api/help',        require('./routes/helpsupport'));
-app.use('/api/ott',         require('./routes/ott'));
+app.use('/api/study',       require('./routes/study'));
 app.use('/api/battlegrounds/admin', require('./routes/admin/battlegrounds'));
 app.use('/api/battlegrounds', require('./routes/student/battlegrounds'));
-app.use('/apiott',          require('./routes/ott'));
+app.use('/api/study',        require('./routes/study'));
 app.use('/api/live-classes', require('./routes/liveClasses'));
 app.use('/api/cohorts',     require('./routes/cohorts'));
 

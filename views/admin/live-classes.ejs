@@ -28,6 +28,44 @@
         <!-- Courses will be dynamically injected here -->
       </div>
     </div>
+
+    <!-- Active Live Classes FAB -->
+    <button id="fab-active-live" class="fixed bottom-8 right-8 bg-red-600 hover:bg-red-700 text-white rounded-full p-4 shadow-lg shadow-red-500/30 transition transform hover:scale-105 z-40 hidden flex items-center justify-center group" aria-label="Active Live Classes">
+      <div class="relative">
+        <i class="fas fa-video text-xl"></i>
+        <span class="absolute -top-1 -right-2 flex h-3 w-3">
+          <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75"></span>
+          <span class="relative inline-flex rounded-full h-3 w-3 bg-white"></span>
+        </span>
+      </div>
+      <span class="ml-2 font-bold text-sm max-w-0 overflow-hidden group-hover:max-w-xs transition-all duration-300 whitespace-nowrap">Active Now (<span id="fab-active-count">0</span>)</span>
+    </button>
+
+    <!-- Active Live Classes Overlay Modal -->
+    <div id="active-live-modal" class="fixed inset-0 bg-slate-900/60 z-[150] flex items-center justify-center p-4 backdrop-blur-sm transition-opacity duration-300 hidden">
+      <div class="bg-white rounded-2xl shadow-xl border border-slate-100 w-full max-w-3xl overflow-hidden transform scale-95 transition-transform duration-300 flex flex-col max-h-[85vh]">
+        <div class="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50 shrink-0">
+          <div class="flex items-center gap-3">
+            <div class="w-2 h-2 rounded-full bg-red-500 animate-pulse"></div>
+            <h3 class="text-lg font-bold text-slate-800">Currently Live Classes</h3>
+          </div>
+          <button id="close-active-modal-btn" type="button" class="text-slate-400 hover:text-slate-600 font-bold text-lg p-2">✕</button>
+        </div>
+        
+        <div class="p-6 flex-1 overflow-y-auto bg-slate-50">
+          <div id="active-live-loading" class="text-center py-8">
+            <div class="animate-spin inline-block w-6 h-6 border-2 border-current border-t-transparent text-slate-400 rounded-full"></div>
+            <p class="text-slate-400 text-xs mt-2 font-semibold">Scanning courses...</p>
+          </div>
+          <div id="active-live-list" class="space-y-4 hidden">
+            <!-- Active live lectures injected here -->
+          </div>
+          <div id="active-live-empty" class="text-center py-10 border border-dashed border-slate-200 rounded-xl bg-white hidden">
+            <p class="text-slate-400 text-sm font-semibold">No classes are currently live on the portal.</p>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 
   <%- include('../partials/toast') %>

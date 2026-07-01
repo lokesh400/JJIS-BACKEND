@@ -491,6 +491,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     selectedChapterIndex = null;
     
     renderCurriculumWorkspace();
+    renderCourseTests();
 
     metaPurchases.textContent = String(Array.isArray(course.purchasedBy) ? course.purchasedBy.length : 0);
     metaCreatedBy.textContent = course.createdBy?.name || '-';
@@ -548,6 +549,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         image: imageInput.value.trim(),
         tags: tagsInput.value.trim(),
         isPublished: publishedInput.checked,
+        tests: (currentCourse.tests || []).map(t => t._id)
       };
 
       await API.put(`/courses/${courseId}`, payload);
@@ -588,6 +590,101 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (e.target === detailsModal) {
         hideModal();
       }
+    });
+  }
+
+  // Tests Logic
+  const addTestBtn = document.getElementById('add-test-btn');
+  const addTestModal = document.getElementById('add-test-modal');
+  const closeTestModalBtn = document.getElementById('close-test-modal-btn');
+  const availableTestsSelect = document.getElementById('available-tests-select');
+  const confirmAddTestBtn = document.getElementById('confirm-add-test-btn');
+  const courseTestsList = document.getElementById('course-tests-list');
+  let availableTests = [];
+
+  const hideTestModal = () => {
+    if (addTestModal) addTestModal.classList.add('hidden');
+  };
+
+  if (addTestBtn && addTestModal) {
+    addTestBtn.addEventListener('click', async () => {
+      addTestModal.classList.remove('hidden');
+      availableTestsSelect.innerHTML = '<option value="">Loading tests...</option>';
+      try {
+        const tests = await API.get('/tests/admin/all');
+        availableTests = tests.filter(t => t.isPublished); // Only show published tests
+        if (availableTests.length === 0) {
+          availableTestsSelect.innerHTML = '<option value="">No published tests found</option>';
+        } else {
+          availableTestsSelect.innerHTML = '<option value="">-- Select a Test to Attach --</option>' + 
+            availableTests.map(t => `<option value="${t._id}">${escapeHtml(t.name)} (${t.duration} mins, ${t.testType})</option>`).join('');
+        }
+      } catch (err) {
+        availableTestsSelect.innerHTML = '<option value="">Failed to load tests</option>';
+      }
+    });
+  }
+
+  if (closeTestModalBtn) closeTestModalBtn.addEventListener('click', hideTestModal);
+  if (addTestModal) addTestModal.addEventListener('click', (e) => {
+    if (e.target === addTestModal) hideTestModal();
+  });
+
+  if (confirmAddTestBtn) {
+    confirmAddTestBtn.addEventListener('click', () => {
+      const selectedId = availableTestsSelect.value;
+      if (!selectedId) {
+        toast.error('Please select a test');
+        return;
+      }
+      
+      currentCourse.tests = currentCourse.tests || [];
+      if (currentCourse.tests.find(t => t._id === selectedId)) {
+        toast.error('Test is already attached to this course');
+        return;
+      }
+
+      const testToAdd = availableTests.find(t => t._id === selectedId);
+      if (testToAdd) {
+        currentCourse.tests.push(testToAdd);
+        renderCourseTests();
+        hideTestModal();
+        toast.success('Test attached (Make sure to click Update Course)');
+      }
+    });
+  }
+
+  function renderCourseTests() {
+    if (!courseTestsList) return;
+    const tests = currentCourse.tests || [];
+    
+    if (tests.length === 0) {
+      courseTestsList.innerHTML = `<div class="text-center py-6 border border-dashed border-slate-200 rounded-xl bg-white"><p class="text-slate-400 text-xs">No tests attached to this course.</p></div>`;
+      return;
+    }
+
+    courseTestsList.innerHTML = tests.map((test, index) => `
+      <div class="bg-white rounded-xl border border-slate-200 p-3 shadow-sm flex items-center justify-between gap-3">
+        <div class="flex flex-col">
+          <span class="text-xs font-bold text-slate-800">${escapeHtml(test.name)}</span>
+          <span class="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">${test.duration} mins • ${test.testType}</span>
+        </div>
+        <button type="button" class="remove-test-btn p-2 border border-red-100 hover:bg-red-50 text-red-500 rounded-lg transition shadow-2xs" data-index="${index}">
+          <i class="fas fa-trash-alt text-xs"></i>
+        </button>
+      </div>
+    `).join('');
+
+    courseTestsList.querySelectorAll('.remove-test-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        const index = parseInt(e.currentTarget.getAttribute('data-index'), 10);
+        const testName = tests[index].name;
+        if (window.confirm(`Remove test "${testName}" from this course?`)) {
+          tests.splice(index, 1);
+          renderCourseTests();
+          toast.success('Test removed (Make sure to click Update Course)');
+        }
+      });
     });
   }
 

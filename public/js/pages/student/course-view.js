@@ -60,7 +60,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (currentView === 'course') {
       renderCourseTabs();
       if (courseTab === 'Subjects') renderSubjectsGrid();
-      else renderTestsPlaceholder();
+      else renderTests();
     } 
     else if (currentView === 'subject') {
       tabContainerEl.innerHTML = ''; // No tabs for subject view
@@ -188,17 +188,50 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   }
 
-  function renderTestsPlaceholder() {
-    dynamicGridEl.className = "w-full";
-    dynamicGridEl.innerHTML = `
-      <div class="mt-10 flex flex-col items-center justify-center p-10 bg-slate-50 border border-dashed border-slate-300 rounded-2xl">
-        <svg class="w-12 h-12 text-slate-300 mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-        </svg>
-        <h4 class="text-lg font-bold text-slate-700">Tests Coming Soon</h4>
-        <p class="text-sm text-slate-500 text-center mt-1">Mock tests and practice sheets will appear here once published.</p>
-      </div>
-    `;
+  function renderTests() {
+    const tests = Array.isArray(course.tests) ? course.tests : [];
+    
+    if (tests.length === 0) {
+      dynamicGridEl.className = "w-full";
+      dynamicGridEl.innerHTML = `
+        <div class="mt-10 flex flex-col items-center justify-center p-10 bg-slate-50 border border-dashed border-slate-300 rounded-2xl">
+          <svg class="w-12 h-12 text-slate-300 mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+          </svg>
+          <h4 class="text-lg font-bold text-slate-700">No Tests Found</h4>
+          <p class="text-sm text-slate-500 text-center mt-1">There are no tests available for this course yet.</p>
+        </div>
+      `;
+      return;
+    }
+
+    dynamicGridEl.className = "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 xl:gap-5";
+    dynamicGridEl.innerHTML = tests.map((test, index) => {
+      const scheduledDate = test.scheduledAt ? dayjs(test.scheduledAt).format('MMM D, YYYY') : 'Available Now';
+      
+      return `
+        <div class="test-card group bg-white border border-slate-200 rounded-xl p-5 shadow-sm flex flex-col justify-between h-full">
+          <div>
+            <div class="flex items-center justify-between mb-3">
+              <span class="text-xs font-bold px-2 py-1 bg-orange-100 text-orange-600 rounded-md uppercase tracking-wider">${escapeHtml(test.testType || 'TEST')}</span>
+              <span class="text-[10px] font-semibold text-slate-400 bg-slate-100 px-2 py-1 rounded-md flex items-center gap-1">
+                <i class="far fa-clock"></i> ${test.duration} mins
+              </span>
+            </div>
+            <h3 class="font-bold text-slate-800 text-base line-clamp-2 leading-snug mb-1">${escapeHtml(test.name)}</h3>
+            ${test.syllabus ? `<p class="text-xs text-slate-500 line-clamp-1 mb-2">${escapeHtml(test.syllabus)}</p>` : ''}
+            <div class="text-xs text-slate-500 mt-2 font-semibold">
+              <i class="far fa-calendar-alt mr-1 text-slate-400"></i> ${scheduledDate}
+            </div>
+          </div>
+          <div class="mt-5">
+            <a href="/student/test/${test._id}/instruction" class="w-full block text-center px-4 py-2.5 bg-slate-800 hover:bg-slate-900 text-white font-bold text-xs rounded-lg transition shadow-sm">
+              Attempt Test
+            </a>
+          </div>
+        </div>
+      `;
+    }).join('');
   }
 
   // -------------- Subject View (Chapters Grid) --------------

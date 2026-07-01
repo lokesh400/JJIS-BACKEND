@@ -83,3 +83,128 @@ function escapeHtml(str) {
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#039;');
 }
+
+// Global Active Live Classes Modal Logic
+document.addEventListener('DOMContentLoaded', () => {
+  const fabBtn = document.getElementById('fab-active-live');
+  const fabCount = document.getElementById('fab-active-count');
+  const modal = document.getElementById('active-live-modal');
+  const closeBtn = document.getElementById('close-active-modal-btn');
+  const listEl = document.getElementById('active-live-list');
+  const loadingEl = document.getElementById('active-live-loading');
+  const emptyEl = document.getElementById('active-live-empty');
+
+  let activeLectures = [];
+
+  const fetchActiveLive = async () => {
+    try {
+      const res = await API.get('/courses/admin/live/active');
+      activeLectures = res || [];
+      if (activeLectures.length > 0) {
+        fabBtn.classList.remove('hidden');
+        fabCount.textContent = activeLectures.length;
+      } else {
+        fabBtn.classList.add('hidden');
+      }
+    } catch (err) {
+      console.error('Failed to fetch active live classes:', err);
+    }
+  };
+
+  const renderActiveLive = () => {
+    loadingEl.classList.add('hidden');
+    
+    if (activeLectures.length === 0) {
+      listEl.classList.add('hidden');
+      emptyEl.classList.remove('hidden');
+      return;
+    }
+
+    emptyEl.classList.add('hidden');
+    listEl.classList.remove('hidden');
+
+    listEl.innerHTML = activeLectures.map(lecture => `
+      <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between gap-4">
+        <div class="flex-1 min-w-0">
+          <div class="flex items-center gap-2 mb-1">
+            <span class="w-2 h-2 rounded-full bg-red-500 animate-pulse"></span>
+            <span class="text-[10px] font-bold uppercase tracking-wider text-red-500">Live</span>
+            <span class="text-[10px] font-bold text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full truncate max-w-[120px]">${escapeHtml(lecture.courseName)}</span>
+          </div>
+          <h4 class="font-bold text-slate-800 text-sm truncate">${escapeHtml(lecture.lectureTitle)}</h4>
+          <p class="text-xs text-slate-500 truncate">${escapeHtml(lecture.subjectName)} • ${escapeHtml(lecture.chapterName)}</p>
+        </div>
+        <button type="button" class="end-live-btn px-4 py-2 bg-red-50 hover:bg-red-100 text-red-600 font-bold text-xs rounded-lg transition border border-red-200 shadow-sm shrink-0" 
+          data-course="${lecture.courseId}" 
+          data-subject="${lecture.subjectIndex}" 
+          data-chapter="${lecture.chapterIndex}" 
+          data-lecture="${lecture.lectureIndex}">
+          End Class
+        </button>
+      </div>
+    `).join('');
+
+    // Attach end button listeners
+    listEl.querySelectorAll('.end-live-btn').forEach(btn => {
+      btn.addEventListener('click', async (e) => {
+        if (!confirm('Are you sure you want to end this live class? This will mark the lecture status as "Ended".')) return;
+        
+        const btnEl = e.currentTarget;
+        const cId = btnEl.getAttribute('data-course');
+        const sIdx = btnEl.getAttribute('data-subject');
+        const cIdx = btnEl.getAttribute('data-chapter');
+        const lIdx = btnEl.getAttribute('data-lecture');
+
+        btnEl.disabled = true;
+        btnEl.textContent = 'Ending...';
+
+        try {
+          await API.patch(`/courses/admin/${cId}/lecture/${sIdx}/${cIdx}/${lIdx}/status`, { status: 'ended' });
+          toast.success('Live class ended successfully');
+          
+          // Re-fetch everything
+          await fetchActiveLive();
+          renderActiveLive();
+          initLiveClassesPage(); // Refresh dashboard cards too
+          
+          // If no active live classes left, close modal
+          if (activeLectures.length === 0) {
+            setTimeout(() => {
+              if(modal) modal.classList.add('hidden');
+            }, 1000);
+          }
+        } catch (err) {
+          btnEl.disabled = false;
+          btnEl.textContent = 'End Class';
+          toast.error(err.message || 'Failed to end live class');
+        }
+      });
+    });
+  };
+
+  if (fabBtn) {
+    fabBtn.addEventListener('click', () => {
+      modal.classList.remove('hidden');
+      loadingEl.classList.remove('hidden');
+      listEl.classList.add('hidden');
+      emptyEl.classList.add('hidden');
+      
+      fetchActiveLive().then(renderActiveLive);
+    });
+  }
+
+  if (closeBtn) {
+    closeBtn.addEventListener('click', () => {
+      modal.classList.add('hidden');
+    });
+  }
+
+  if (modal) {
+    modal.addEventListener('click', (e) => {
+      if (e.target === modal) modal.classList.add('hidden');
+    });
+  }
+
+  // Initial fetch
+  fetchActiveLive();
+});

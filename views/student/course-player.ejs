@@ -3,16 +3,12 @@
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 <!-- Load Classroom Page Styling -->
 <link rel="stylesheet" href="/css/classroom.css">
-<body class="min-h-screen bg-[#0b1220] text-white">
+<body class="min-h-screen bg-[#F8FAFC] text-slate-900">
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Sora:wght@600;700;800&display=swap');
 
     .pwplayer-shell {
       font-family: 'Outfit', sans-serif;
-      background:
-        radial-gradient(circle at 90% 10%, rgba(34, 211, 238, 0.17), transparent 34%),
-        radial-gradient(circle at 15% 85%, rgba(249, 115, 22, 0.14), transparent 40%),
-        linear-gradient(180deg, #0b1220 0%, #0f172a 48%, #111827 100%);
     }
 
     .pwplayer-title {
@@ -21,48 +17,46 @@
     }
 
     .pwplayer-glass {
-      backdrop-filter: blur(12px);
-      background: rgba(15, 23, 42, 0.7);
-      border: 1px solid rgba(148, 163, 184, 0.2);
+      background: #FFFFFF;
+      border-bottom: 1px solid #E2E8F0;
     }
 
     .pwplayer-panel {
       border-radius: 1.25rem;
-      border: 1px solid rgba(148, 163, 184, 0.2);
-      background: linear-gradient(160deg, rgba(2, 6, 23, 0.9), rgba(15, 23, 42, 0.9));
-      box-shadow: 0 24px 55px rgba(2, 6, 23, 0.45);
+      border: 1px solid #E2E8F0;
+      background: #000000;
+      box-shadow: 0 10px 25px rgba(15, 23, 42, 0.05);
     }
 
     .pwplayer-chip {
       border-radius: 999px;
-      border: 1px solid rgba(148, 163, 184, 0.35);
+      border: 1px solid #E2E8F0;
       padding: 0.35rem 0.8rem;
       font-size: 0.75rem;
       font-weight: 700;
-      color: #dbeafe;
-      background: rgba(15, 23, 42, 0.7);
+      color: #334155;
+      background: #F1F5F9;
     }
 
     .pwplayer-tab.active {
-      background: linear-gradient(120deg, #f97316, #ea580c);
+      background: #0F172A;
       color: #fff;
-      border-color: #f97316;
-      box-shadow: 0 12px 22px rgba(249, 115, 22, 0.3);
+      border-color: #0F172A;
     }
 
     .pwplayer-lecture.active {
-      border-color: rgba(34, 211, 238, 0.55);
-      background: linear-gradient(130deg, rgba(34, 211, 238, 0.16), rgba(56, 189, 248, 0.08));
+      border-color: #22C55E;
+      background: #F0FDF4;
     }
 
-    .pwplayer-lecture:hover {
-      border-color: rgba(148, 163, 184, 0.5);
-      background: rgba(15, 23, 42, 0.92);
+    .pwplayer-lecture:hover:not(.active) {
+      border-color: #CBD5E1;
+      background: #F8FAFC;
     }
 
     .pwplayer-search {
-      border: 1px solid rgba(148, 163, 184, 0.3);
-      background: rgba(15, 23, 42, 0.72);
+      border: 1px solid #E2E8F0;
+      background: #F8FAFC;
     }
 
     .video-container {
@@ -89,30 +83,93 @@
       pointer-events: none !important;
       transform: none !important;
     }
-    .progress-bar-custom {
-      overflow: visible !important;
+    /* Overlay tap layer */
+    #tap-overlay {
+      position: absolute;
+      inset: 0;
+      z-index: 10;
     }
-    .progress-handle {
+
+    /* Controls Overlay */
+    #controls {
+      position: absolute;
+      bottom: 0; left: 0; right: 0;
+      height: 60px;
+      background: linear-gradient(to top, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0) 100%);
+      display: flex;
+      align-items: center;
+      padding: 0 16px;
+      gap: 16px;
+      z-index: 30;
+      opacity: 1;
+      transition: opacity 0.3s ease;
+      pointer-events: auto;
+    }
+    #controls.hidden {
+      opacity: 0;
       pointer-events: none;
-      box-shadow: 0 0 5px rgba(249, 115, 22, 0.8);
-      transition: transform 0.1s ease;
     }
-    .progress-bar-custom:hover .progress-handle {
-      transform: translate(50%, -50%) scale(1.2);
+    #controls button {
+      background: none;
+      border: none;
+      cursor: pointer;
+      padding: 6px;
+      color: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
     }
-    .custom-player-controls {
-      background: #ffffff !important;
-      border-top: 1px solid #e2e8f0 !important;
+    #controls button svg {
+      width: 24px;
+      height: 24px;
+      fill: #fff;
+      filter: drop-shadow(0px 2px 4px rgba(0,0,0,0.5));
     }
-    .custom-player-controls .control-btn {
-      color: #334155 !important;
+    #progress-wrap {
+      flex: 1;
+      height: 12px;
+      display: flex;
+      align-items: center;
+      cursor: pointer;
+      position: relative;
     }
-    .custom-player-controls .control-btn:hover {
-      color: #0f172a !important;
-      background-color: rgba(0, 0, 0, 0.05) !important;
+    #progress-bg {
+      width: 100%;
+      height: 4px;
+      background: rgba(255,255,255,0.3);
+      border-radius: 2px;
+      position: relative;
     }
-    .custom-player-controls .time-display {
-      color: #475569 !important;
+    #progress-fill {
+      height: 100%;
+      background: #f97316;
+      border-radius: 2px;
+      width: 0%;
+      position: relative;
+    }
+    #progress-handle {
+      position: absolute;
+      right: -6px;
+      top: -4px;
+      width: 12px;
+      height: 12px;
+      background: #fff;
+      border-radius: 50%;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.5);
+    }
+    #time-display {
+      font-size: 12px;
+      color: #fff;
+      min-width: 70px;
+      text-align: right;
+      font-weight: 500;
+      text-shadow: 0px 1px 2px rgba(0,0,0,0.8);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    }
+    .aside-card {
+      background: #FFFFFF;
+      border: 1px solid #E2E8F0;
+      border-radius: 1rem;
     }
   </style>
   <div id="loading" class="min-h-screen flex items-center justify-center"><div class="spinner"></div></div>
@@ -121,21 +178,21 @@
     <header class="px-3 md:px-6 py-3 md:py-4 pwplayer-glass sticky top-0 z-30">
       <div class="max-w-[1700px] mx-auto flex flex-col lg:flex-row gap-3 lg:items-center lg:justify-between">
         <div class="min-w-0">
-          <button id="back-btn" class="text-xs md:text-sm text-cyan-300 hover:text-cyan-200 mb-1">&larr; Back to Course</button>
-          <h1 id="player-course-name" class="pwplayer-title text-base md:text-xl font-semibold truncate">Course</h1>
-          <p id="player-lecture-title" class="text-xs md:text-sm text-white/65 truncate font-bold text-orange-400">Lecture</p>
+          <button id="back-btn" class="text-xs md:text-sm text-blue-600 hover:text-blue-700 font-bold mb-1">&larr; Back to Course</button>
+          <h1 id="player-course-name" class="pwplayer-title text-base md:text-xl font-bold truncate text-slate-900">Course</h1>
+          <p id="player-lecture-title" class="text-xs md:text-sm text-slate-500 truncate font-semibold">Lecture</p>
         </div>
 
         <div class="flex flex-wrap items-center gap-2 md:gap-2.5">
           <span id="player-lesson-stats" class="pwplayer-chip">0 Lessons</span>
-          <span id="player-active-chip" class="pwplayer-chip">Video Mode</span>
-          <div class="flex items-center gap-1.5 rounded-xl border border-white/15 bg-white/5 p-1">
-            <button id="tab-video" class="pwplayer-tab active px-3 py-1.5 rounded-lg text-xs font-semibold border border-transparent transition">Play Video</button>
-            <button id="tab-attachments" class="pwplayer-tab px-3 py-1.5 rounded-lg text-xs font-semibold border border-transparent text-white/80 transition">Attachments</button>
+          <span id="player-active-chip" class="pwplayer-chip bg-orange-100 text-orange-700 border-orange-200">Video Mode</span>
+          <div class="flex items-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50 p-1">
+            <button id="tab-video" class="pwplayer-tab active px-3 py-1.5 rounded-lg text-xs font-semibold border border-transparent text-slate-500 transition">Play Video</button>
+            <button id="tab-attachments" class="pwplayer-tab px-3 py-1.5 rounded-lg text-xs font-semibold border border-transparent text-slate-500 transition">Attachments</button>
           </div>
-          <div class="flex items-center gap-1.5 rounded-xl border border-white/15 bg-white/5 p-1">
-            <button id="prev-lecture" class="px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-white/10 hover:bg-white/15">Prev</button>
-            <button id="next-lecture" class="px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-white/10 hover:bg-white/15">Next</button>
+          <div class="flex items-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50 p-1">
+            <button id="prev-lecture" class="px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 shadow-sm">Prev</button>
+            <button id="next-lecture" class="px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 shadow-sm">Next</button>
           </div>
         </div>
       </div>
@@ -144,10 +201,6 @@
     <main class="flex-1 min-h-0 px-3 py-3 md:px-5 md:py-5">
       <div class="max-w-[1700px] mx-auto grid grid-cols-1 xl:grid-cols-[minmax(0,1fr),380px] gap-4 md:gap-5 min-h-full">
         <section class="min-h-[58vh] xl:min-h-0 relative">
-          <div class="absolute inset-0 pointer-events-none opacity-40">
-            <div class="absolute -top-20 left-8 w-72 h-72 rounded-full bg-cyan-400/20 blur-3xl"></div>
-            <div class="absolute -bottom-10 right-8 w-72 h-72 rounded-full bg-orange-500/20 blur-3xl"></div>
-          </div>
           
           <div id="player-panel" class="pwplayer-panel overflow-hidden relative">
             <div class="video-container w-full relative">
@@ -199,7 +252,7 @@
                 </div>
 
                 <!-- Time display -->
-                <div class="time-display text-xs text-slate-600 min-w-[80px] text-center">0:00 / 0:00</div>
+                <div class="time-display text-xs text-slate-600 min-w-[80px] text-center font-bold">0:00 / 0:00</div>
 
                 <!-- Mute / Volume -->
                 <div class="volume-container flex items-center gap-2">
@@ -218,30 +271,30 @@
           </div>
         </section>
 
-        <aside class="pwplayer-glass rounded-2xl p-3 md:p-4 flex flex-col min-h-[400px] xl:min-h-0">
-          <div class="flex items-center gap-1.5 rounded-xl border border-white/15 bg-white/5 p-1 mb-3">
-            <button id="aside-tab-roadmap" class="pwplayer-tab active flex-1 text-center py-1.5 rounded-lg text-xs font-semibold border border-transparent transition">Roadmap</button>
-            <button id="aside-tab-chat" class="pwplayer-tab flex-1 text-center py-1.5 rounded-lg text-xs font-semibold border border-transparent text-white/80 transition">Live Chat</button>
+        <aside class="aside-card p-3 md:p-4 flex flex-col min-h-[400px] xl:min-h-0 shadow-sm">
+          <div class="flex items-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50 p-1 mb-3">
+            <button id="aside-tab-roadmap" class="pwplayer-tab active flex-1 text-center py-1.5 rounded-lg text-xs font-bold border border-transparent text-slate-500 transition">Roadmap</button>
+            <button id="aside-tab-chat" class="pwplayer-tab flex-1 text-center py-1.5 rounded-lg text-xs font-bold border border-transparent text-slate-500 transition">Live Chat</button>
           </div>
           
           <!-- Roadmap Tab Panel -->
           <div id="roadmap-panel" class="flex-grow flex flex-col min-h-0">
-            <p class="text-xs uppercase tracking-[0.18em] text-white/50 mb-2">Lecture Roadmap</p>
+            <p class="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-2">Lecture Roadmap</p>
             <label for="player-lecture-search" class="sr-only">Search lectures</label>
-            <input id="player-lecture-search" type="search" placeholder="Search lecture..." class="pwplayer-search w-full rounded-xl px-3 py-2 text-sm text-white placeholder:text-slate-400" />
-            <div id="player-lecture-list" class="space-y-2.5 mt-3 overflow-y-auto flex-1"></div>
+            <input id="player-lecture-search" type="search" placeholder="Search lecture..." class="pwplayer-search w-full rounded-xl px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 shadow-sm" />
+            <div id="player-lecture-list" class="space-y-2 mt-3 overflow-y-auto flex-1 hide-scrollbar"></div>
           </div>
 
           <!-- Live Chat Tab Panel -->
           <div id="chat-panel" class="hidden flex-grow flex flex-col min-h-0">
-            <div class="chat-container flex-grow flex flex-col min-h-0 bg-slate-950/40 rounded-xl border border-white/10 overflow-hidden">
+            <div class="chat-container flex-grow flex flex-col min-h-0 bg-slate-50 rounded-xl border border-slate-200 overflow-hidden">
               <div id="chat-messages" class="chat-messages flex-grow p-3 overflow-y-auto space-y-2 text-xs h-[300px] xl:h-auto">
-                <div class="text-center py-6 text-white/40">Select a lecture to join chat feed...</div>
+                <div class="text-center py-6 text-slate-400 font-semibold">Select a lecture to join chat feed...</div>
               </div>
-              <div class="chat-input-area p-2 border-t border-white/10 bg-slate-950/80">
+              <div class="chat-input-area p-2 border-t border-slate-200 bg-white">
                 <form id="chat-form" class="chat-form flex gap-1.5">
-                  <input id="chat-input" type="text" autocomplete="off" placeholder="Say something in class..." required class="chat-input flex-1 px-3 py-2 rounded-lg bg-white/10 text-xs text-white border border-white/10 focus:outline-none focus:border-cyan-400" />
-                  <button type="submit" class="chat-send-btn px-3 py-2 rounded-lg bg-cyan-500 hover:bg-cyan-600 text-slate-950 text-xs font-bold transition">
+                  <input id="chat-input" type="text" autocomplete="off" placeholder="Say something in class..." required class="chat-input flex-1 px-3 py-2 rounded-lg bg-slate-50 text-xs text-slate-800 border border-slate-200 focus:outline-none focus:border-blue-500" />
+                  <button type="submit" class="chat-send-btn px-3 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold transition">
                     Send
                   </button>
                 </form>

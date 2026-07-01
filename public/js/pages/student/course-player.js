@@ -126,20 +126,20 @@ document.addEventListener('DOMContentLoaded', async () => {
         try { window.player.destroy(); } catch (_) {}
       }
       playerPanelEl.innerHTML = `
-        <div class="h-full overflow-auto p-4 md:p-6 bg-slate-900/60">
-          <h2 class="text-lg font-semibold mb-4 text-cyan-400">Lecture Attachments</h2>
+        <div class="h-full overflow-auto p-4 md:p-6 bg-slate-50">
+          <h2 class="text-lg font-bold mb-4 text-slate-800">Lecture Attachments</h2>
           ${pdfs.length === 0 ? `
-            <div class="text-center py-12 text-white/40 text-xs">
-              <i class="fas fa-folder-open text-2xl mb-2 text-white/30"></i>
+            <div class="text-center py-12 text-slate-400 text-xs">
+              <i class="fas fa-folder-open text-2xl mb-2 text-slate-300"></i>
               <p>No attachments available for this lecture.</p>
             </div>
           ` : `
             <div class="grid grid-cols-1 md:grid-cols-2 gap-3.5">
               ${pdfs.map((pdf, index) => `
-                <a href="${sanitizeUrl(pdf.link)}" target="_blank" rel="noopener" class="p-3.5 rounded-xl border border-white/10 bg-slate-900/70 hover:bg-slate-800 transition">
-                  <p class="text-xs text-cyan-300/70">Attachment ${index + 1}</p>
-                  <p class="text-sm font-semibold mt-1">${escapeHtml(pdf.title || 'PDF')}</p>
-                  <p class="text-xs text-cyan-400/80 mt-1">Open in new tab</p>
+                <a href="${sanitizeUrl(pdf.link)}" target="_blank" rel="noopener" class="p-3.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 transition shadow-sm">
+                  <p class="text-xs text-slate-500 font-bold uppercase tracking-wider">Attachment ${index + 1}</p>
+                  <p class="text-sm font-semibold mt-1 text-slate-900">${escapeHtml(pdf.title || 'PDF')}</p>
+                  <p class="text-xs text-blue-600 font-semibold mt-1">Open in new tab &rarr;</p>
                 </a>
               `).join('')}
             </div>
@@ -160,43 +160,39 @@ document.addEventListener('DOMContentLoaded', async () => {
 
       // Always restore clean player HTML to reset DOM event listeners and indicators
       playerPanelEl.innerHTML = `
-        <div class="video-container w-full relative">
+        <div class="video-container w-full relative bg-black">
           <div id="player-placeholder" class="absolute inset-0 w-full h-full"></div>
-          <div class="video-overlay-protection absolute inset-x-0 top-0 bottom-[50px] z-10"></div>
+          <div id="tap-overlay"></div>
           <div id="devtools-overlay" class="dev-security-overlay absolute inset-0 z-[100] flex flex-col items-center justify-center bg-black/95 text-white opacity-0 pointer-events-none transition-opacity duration-300 text-center">
             <i class="fas fa-lock text-3xl mb-3 text-red-500"></i>
             <h2 class="text-lg font-bold text-red-500 mb-1">Security Blackout Active</h2>
             <p class="text-xs text-white/70 max-w-xs px-4">DevTools inspection or background window shifting detected. Close tools and return focus to resume play.</p>
           </div>
-          <div id="watermark-1" class="watermark absolute z-15">${escapeHtml(user.email)} ${user.mobile ? `(${escapeHtml(user.mobile)})` : ''}</div>
-          <div id="watermark-2" class="watermark absolute z-15">${escapeHtml(user.email)} ${user.mobile ? `(${escapeHtml(user.mobile)})` : ''}</div>
-          <div id="watermark-3" class="watermark absolute z-15">${escapeHtml(user.email)} ${user.mobile ? `(${escapeHtml(user.mobile)})` : ''}</div>
-          <div class="custom-player-controls absolute bottom-0 inset-x-0 h-[50px] bg-white border-t border-slate-200 flex items-center px-4 gap-4 z-20">
-            <button id="seek-backward-btn" class="control-btn text-slate-700 hover:text-slate-900" title="Backward 10s">
-              <i class="fas fa-backward"></i>
+          <div id="watermark-1" class="watermark absolute z-15 text-[10px] text-white/30 font-mono pointer-events-none whitespace-nowrap transition-all duration-[5000ms]">${escapeHtml(user.email)} ${user.mobile ? `(${escapeHtml(user.mobile)})` : ''}</div>
+          <div id="watermark-2" class="watermark absolute z-15 text-[10px] text-white/30 font-mono pointer-events-none whitespace-nowrap transition-all duration-[5000ms]">${escapeHtml(user.email)} ${user.mobile ? `(${escapeHtml(user.mobile)})` : ''}</div>
+          <div id="watermark-3" class="watermark absolute z-15 text-[10px] text-white/30 font-mono pointer-events-none whitespace-nowrap transition-all duration-[5000ms]">${escapeHtml(user.email)} ${user.mobile ? `(${escapeHtml(user.mobile)})` : ''}</div>
+          
+          <div id="controls">
+            <button id="btn-back">
+              <svg viewBox="0 0 24 24"><path d="M12.5 12l5 4V8l-5 4zM6.5 12l5 4V8l-5 4zM5 8h2v8H5z"/></svg>
             </button>
-            <button id="play-pause-btn" class="control-btn text-slate-700 hover:text-slate-900" title="Play/Pause">
-              <i id="play-pause-icon" class="fas fa-play"></i>
+            <button id="btn-play">
+              <svg id="play-icon" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+              <svg id="pause-icon" viewBox="0 0 24 24" style="display:none;"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
             </button>
-            <button id="seek-forward-btn" class="control-btn text-slate-700 hover:text-slate-900" title="Forward 10s">
-              <i class="fas fa-forward"></i>
+            <button id="btn-fwd">
+              <svg viewBox="0 0 24 24"><path d="M11.5 12l-5-4v8l5-4zM17.5 12l-5-4v8l5-4zM17 8h2v8h-2z"/></svg>
             </button>
-            <div class="progress-bar-wrapper flex-grow flex items-center">
-              <div class="progress-bar-custom w-full h-1.5 bg-slate-200 rounded-full cursor-pointer relative">
-                <div class="progress-fill h-full w-0 bg-orange-500 rounded-full relative">
-                  <div class="progress-handle absolute right-0 top-1/2 -translate-y-1/2 w-3 h-3 rounded-full bg-white border-2 border-orange-500 shadow-sm translate-x-1/2"></div>
+            <div id="progress-wrap">
+              <div id="progress-bg">
+                <div id="progress-fill">
+                  <div id="progress-handle"></div>
                 </div>
               </div>
             </div>
-            <div class="time-display text-xs text-slate-600 min-w-[80px] text-center">0:00 / 0:00</div>
-            <div class="volume-container flex items-center gap-2">
-              <button id="mute-btn" class="control-btn text-slate-700 hover:text-slate-900" title="Mute/Unmute">
-                <i id="mute-icon" class="fas fa-volume-up"></i>
-              </button>
-              <input id="volume-slider" type="range" min="0" max="100" value="100" class="volume-slider w-[70px] h-1 accent-orange-500" title="Volume Slider" />
-            </div>
-            <button id="fullscreen-btn" class="control-btn text-slate-700 hover:text-slate-900" title="Fullscreen">
-              <i class="fas fa-expand"></i>
+            <div id="time-display">0:00 / 0:00</div>
+            <button id="fullscreen-btn">
+               <svg viewBox="0 0 24 24"><path d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z"/></svg>
             </button>
           </div>
         </div>
@@ -212,7 +208,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       initLectureChat(activeLecture._id);
 
     } catch (error) {
-      playerPanelEl.innerHTML = `<div class="h-full flex items-center justify-center text-sm text-white/70 px-6 text-center">${escapeHtml(error.message || 'Unable to load signed playback URL')}</div>`;
+      playerPanelEl.innerHTML = `<div class="h-full flex items-center justify-center text-sm text-red-500 font-semibold px-6 text-center">${escapeHtml(error.message || 'Unable to load signed playback URL')}</div>`;
     }
   }
 
@@ -259,38 +255,54 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   }
 
+  let hideControlsTimer;
+
+  function resetControlsTimer() {
+    const controls = document.getElementById('controls');
+    if (controls) {
+      controls.classList.remove('hidden');
+      clearTimeout(hideControlsTimer);
+      hideControlsTimer = setTimeout(() => {
+        controls.classList.add('hidden');
+      }, 3000);
+    }
+  }
+
   function onPlayerReady(event) {
     setupCustomControls();
     event.target.playVideo();
+    resetControlsTimer();
   }
 
   function onPlayerStateChange(event) {
-    const playPauseIcon = document.getElementById('play-pause-icon');
-    if (!playPauseIcon) return;
+    const playIcon = document.getElementById('play-icon');
+    const pauseIcon = document.getElementById('pause-icon');
+    if (!playIcon || !pauseIcon) return;
 
     if (event.data === YT.PlayerState.PLAYING) {
-      playPauseIcon.className = 'fas fa-pause';
+      playIcon.style.display = 'none';
+      pauseIcon.style.display = 'block';
     } else {
-      playPauseIcon.className = 'fas fa-play';
+      playIcon.style.display = 'block';
+      pauseIcon.style.display = 'none';
     }
+    resetControlsTimer();
   }
 
   function setupCustomControls() {
-    const playPauseBtn = document.getElementById('play-pause-btn');
-    const seekBackwardBtn = document.getElementById('seek-backward-btn');
-    const seekForwardBtn = document.getElementById('seek-forward-btn');
-    const muteBtn = document.getElementById('mute-btn');
-    const muteIcon = document.getElementById('mute-icon');
-    const volumeSlider = document.getElementById('volume-slider');
+    const playPauseBtn = document.getElementById('btn-play');
+    const seekBackwardBtn = document.getElementById('btn-back');
+    const seekForwardBtn = document.getElementById('btn-fwd');
     const fullscreenBtn = document.getElementById('fullscreen-btn');
     const videoContainer = document.querySelector('.video-container');
-    const progressCustom = document.querySelector('.progress-bar-custom');
-    const progressFill = document.querySelector('.progress-fill');
-    const timeDisplay = document.querySelector('.time-display');
-    const overlayProtection = document.querySelector('.video-overlay-protection');
+    const progressWrap = document.getElementById('progress-wrap');
+    const progressFill = document.getElementById('progress-fill');
+    const timeDisplay = document.getElementById('time-display');
+    const tapOverlay = document.getElementById('tap-overlay');
 
     if (playPauseBtn) {
       playPauseBtn.addEventListener('click', () => {
+        resetControlsTimer();
         if (!window.player || typeof window.player.getPlayerState !== 'function') return;
         const state = window.player.getPlayerState();
         if (state === YT.PlayerState.PLAYING) {
@@ -301,18 +313,19 @@ document.addEventListener('DOMContentLoaded', async () => {
       });
     }
 
-    if (overlayProtection) {
-      overlayProtection.addEventListener('click', () => {
-        if (!window.player || typeof window.player.getPlayerState !== 'function') return;
-        const state = window.player.getPlayerState();
-        if (state === YT.PlayerState.PLAYING) {
-          window.player.pauseVideo();
+    if (tapOverlay) {
+      tapOverlay.addEventListener('click', () => {
+        const controls = document.getElementById('controls');
+        if (!controls) return;
+        if (controls.classList.contains('hidden')) {
+          resetControlsTimer();
         } else {
-          window.player.playVideo();
+          controls.classList.add('hidden');
+          clearTimeout(hideControlsTimer);
         }
       });
 
-      overlayProtection.addEventListener('dblclick', () => {
+      tapOverlay.addEventListener('dblclick', () => {
         if (videoContainer) {
           if (!document.fullscreenElement) {
             videoContainer.requestFullscreen().catch(err => {
@@ -327,6 +340,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     if (seekBackwardBtn) {
       seekBackwardBtn.addEventListener('click', () => {
+        resetControlsTimer();
         if (!window.player || typeof window.player.getCurrentTime !== 'function') return;
         const currentTime = window.player.getCurrentTime();
         window.player.seekTo(Math.max(0, currentTime - 10), true);
@@ -335,6 +349,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     if (seekForwardBtn) {
       seekForwardBtn.addEventListener('click', () => {
+        resetControlsTimer();
         if (!window.player || typeof window.player.getCurrentTime !== 'function' || typeof window.player.getDuration !== 'function') return;
         const currentTime = window.player.getCurrentTime();
         const duration = window.player.getDuration();
@@ -342,38 +357,9 @@ document.addEventListener('DOMContentLoaded', async () => {
       });
     }
 
-    if (muteBtn) {
-      muteBtn.addEventListener('click', () => {
-        if (!window.player || typeof window.player.isMuted !== 'function') return;
-        if (window.player.isMuted()) {
-          window.player.unMute();
-          muteIcon.className = 'fas fa-volume-up';
-          volumeSlider.value = window.player.getVolume();
-        } else {
-          window.player.mute();
-          muteIcon.className = 'fas fa-volume-mute';
-          volumeSlider.value = 0;
-        }
-      });
-    }
-
-    if (volumeSlider) {
-      volumeSlider.addEventListener('input', (e) => {
-        if (!window.player || typeof window.player.setVolume !== 'function') return;
-        const volume = e.target.value;
-        window.player.setVolume(volume);
-        if (volume == 0) {
-          window.player.mute();
-          muteIcon.className = 'fas fa-volume-mute';
-        } else {
-          window.player.unMute();
-          muteIcon.className = 'fas fa-volume-up';
-        }
-      });
-    }
-
     if (fullscreenBtn && videoContainer) {
       fullscreenBtn.addEventListener('click', () => {
+        resetControlsTimer();
         if (!document.fullscreenElement) {
           videoContainer.requestFullscreen().catch(err => {
             console.error('Error entering fullscreen:', err.message);
@@ -409,11 +395,12 @@ document.addEventListener('DOMContentLoaded', async () => {
       }
     }, 1000);
 
-    if (progressCustom) {
-      progressCustom.addEventListener('click', (e) => {
+    if (progressWrap) {
+      progressWrap.addEventListener('click', (e) => {
+        resetControlsTimer();
         const duration = window.player.getDuration();
         if (duration > 0) {
-          const rect = progressCustom.getBoundingClientRect();
+          const rect = progressWrap.getBoundingClientRect();
           const pos = (e.clientX - rect.left) / rect.width;
           window.player.seekTo(pos * duration, true);
         }

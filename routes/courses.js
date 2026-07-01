@@ -210,6 +210,7 @@ router.get('/admin/all', auth, adminOnly, async (req, res) => {
 router.get('/admin/:id', auth, adminOnly, async (req, res) => {
   try {
     const course = await Course.findById(req.params.id)
+      .populate('tests', 'name description syllabus duration mode testType scheduledAt isPublished')
       .populate('createdBy', 'name email')
       .populate('purchasedBy', 'name email')
       .lean();
@@ -265,6 +266,9 @@ router.put('/:id', auth, adminOnly, async (req, res) => {
     if (madeFor !== undefined) update.madeFor = madeFor;
     if (image !== undefined) update.image = image;
     if (isPublished !== undefined) update.isPublished = !!isPublished;
+    if (req.body.tests !== undefined) {
+      update.tests = Array.isArray(req.body.tests) ? req.body.tests : [];
+    }
 
     const course = await Course.findByIdAndUpdate(req.params.id, update, { new: true })
       .populate('createdBy', 'name')
@@ -421,7 +425,9 @@ router.get('/published', auth, async (req, res) => {
 
 router.get('/published/:id', auth, async (req, res) => {
   try {
-    const course = await Course.findOne({ _id: req.params.id, isPublished: true }).lean();
+    const course = await Course.findOne({ _id: req.params.id, isPublished: true })
+      .populate('tests', 'name duration mode testType scheduledAt syllabus')
+      .lean();
     if (!course) return res.status(404).json({ message: 'Course not found' });
 
     // Allow opening a course only after successful purchase/enrollment.
@@ -558,6 +564,67 @@ router.get('/stream', auth, async (req, res) => {
     if (status) {
       return res.status(status).json({ message: 'Unable to stream this lecture right now' });
     }
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// Get all active live lectures across all courses (admin)
+router.get('/admin/live/active', auth, adminOnly, async (req, res) => {
+  try {
+    const courses = await Course.find({ "subjects.chapters.lectures.status": "live" }).select("name subjects.name subjects.chapters.name subjects.chapters.lectures").lean();
+    
+    const activeLectures = [];
+    for (const course of courses) {
+      for (let sIndex = 0; sIndex < (course.subjects || []).length; sIndex++) {
+        const subject = course.subjects[sIndex];
+        for (let cIndex = 0; cIndex < (subject.chapters || []).length; cIndex++) {
+          const chapter = subject.chapters[cIndex];
+          for (let lIndex = 0; lIndex < (chapter.lectures || []).length; lIndex++) {
+            const lecture = chapter.lectures[lIndex];
+            if (lecture.status === 'live') {
+              activeLectures.push({
+                courseId: course._id,
+                courseName: course.name,
+                subjectIndex: sIndex,
+                chapterIndex: cIndex,
+                lectureIndex: lIndex,
+                subjectName: subject.name,
+                chapterName: chapter.name,
+                lectureId: lecture._id,
+                lectureTitle: lecture.title,
+                scheduledAt: lecture.scheduledAt
+              });
+            }
+          }
+        }
+      }
+    }
+    res.json(activeLectures);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// Update specific lecture status (admin)
+router.patch('/admin/:courseId/lecture/:subjectIndex/:chapterIndex/:lectureIndex/status', auth, adminOnly, async (req, res) => {
+  try {
+    const { courseId, subjectIndex, chapterIndex, lectureIndex } = req.params;
+    const { status } = req.body;
+    
+    if (!['scheduled', 'live', 'ended'].includes(status)) {
+      return res.status(400).json({ message: 'Invalid status' });
+    }
+
+    const updatePath = `subjects.${subjectIndex}.chapters.${chapterIndex}.lectures.${lectureIndex}.status`;
+    const course = await Course.findByIdAndUpdate(
+      courseId,
+      { $set: { [updatePath]: status } },
+      { new: true }
+    );
+    
+    if (!course) return res.status(404).json({ message: 'Course or lecture not found' });
+    res.json({ message: 'Lecture status updated successfully' });
+  } catch (error) {
     res.status(500).json({ message: error.message });
   }
 });

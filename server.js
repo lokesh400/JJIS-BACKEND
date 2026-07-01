@@ -30,7 +30,7 @@ const allowedOrigins = [
   'http://localhost:5000',
   'http://localhost:3000',
   'http://localhost:8081',
-  'https://testportal.garudclasses.com',
+  'https://dashboard.garudclasses.com',
   'http://localhost:3030',
 ];
 
@@ -133,7 +133,7 @@ app.use((req, res, next) => {
 
 // ── Inject canonical page URL into every EJS template ───────────────────────
 app.use((req, res, next) => {
-  res.locals.pageUrl = 'https://testportal.garudclasses.com' + req.path;
+  res.locals.pageUrl = 'https://dashboard.garudclasses.com' + req.path;
   next();
 });
 
@@ -162,7 +162,7 @@ app.use('/api/help',        require('./routes/helpsupport'));
 app.use('/api/study',       require('./routes/study'));
 app.use('/api/battlegrounds/admin', require('./routes/admin/battlegrounds'));
 app.use('/api/battlegrounds', require('./routes/student/battlegrounds'));
-app.use('/api/study',        require('./routes/study'));
+app.use('/apistudy',        require('./routes/study'));
 app.use('/api/live-classes', require('./routes/liveClasses'));
 app.use('/api/cohorts',     require('./routes/cohorts'));
 
@@ -178,7 +178,7 @@ app.get('/health', (req, res) => res.status(200).send('OK'));
 
 function startKeepAlive() {
   setInterval(async () => {
-    const result = await axios.get('https://testportal.garudclasses.com/health', { timeout: 5000 }).catch(err => {
+    const result = await axios.get('https://dashboard.garudclasses.com/health', { timeout: 5000 }).catch(err => {
       console.error('Keep-alive error:', err.message);
       return null;
     });

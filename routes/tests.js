@@ -8,6 +8,7 @@ const PDFDocument = require('pdfkit');
 const axios = require('axios');
 const { auth, adminOnly } = require('../middleware/auth');
 const User = require('../models/User');
+const Course = require('../models/Course');
 
 const router = express.Router();
 
@@ -970,11 +971,18 @@ router.post('/:id/start', auth, async (req, res) => {
     // ── Batch-gated access check ─────────────────────────────────────
     const { batchId } = req.body;
     if (batchId) {
-      const series = await TestSeries.findOne({ _id: batchId, isPublished: true });
+      let series = await TestSeries.findOne({ _id: batchId, isPublished: true });
+      let itemType = 'TestSeries';
+      
+      if (!series) {
+        series = await Course.findOne({ _id: batchId, isPublished: true });
+        itemType = 'Course';
+      }
+
       if (!series) return res.status(404).json({ message: 'Batch not found' });
 
       // Verify this test belongs to the batch
-      const testInBatch = series.tests.some(t => t.toString() === test._id.toString());
+      const testInBatch = series.tests && series.tests.some(t => t.toString() === test._id.toString());
       if (!testInBatch) {
         return res.status(403).json({ message: 'This test is not part of the specified batch' });
       }
@@ -984,7 +992,7 @@ router.post('/:id/start', auth, async (req, res) => {
         const hasPurchase = await Purchase.findOne({
           user: req.user._id,
           itemId: batchId,
-          itemType: 'TestSeries',
+          itemType: itemType,
           status: 'success',
         });
         const alsoInPurchasedBy = series.purchasedBy && series.purchasedBy.some(

@@ -120,6 +120,12 @@ const courseSchema = new mongoose.Schema(
       type: [lectureSchema],
       default: [],
     },
+    tests: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Test',
+      }
+    ],
     purchasedBy: [
       {
         type: mongoose.Schema.Types.ObjectId,

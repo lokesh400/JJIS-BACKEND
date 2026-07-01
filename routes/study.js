@@ -147,7 +147,9 @@ router.get(['/published/:id', '/courses/published/:courseId'], auth, async (req,
       return res.status(400).json({ message: 'course id is required' });
     }
 
-    const course = await Course.findOne({ _id: courseId, isPublished: true }).lean();
+    const course = await Course.findOne({ _id: courseId, isPublished: true })
+      .populate('tests', 'name duration mode testType scheduledAt syllabus')
+      .lean();
     if (!course) {
       return res.status(404).json({ message: 'Course not found' });
     }

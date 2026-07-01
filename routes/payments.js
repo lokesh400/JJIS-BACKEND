@@ -132,6 +132,13 @@ router.post('/verify', auth, async (req, res) => {
       return res.status(400).json({ message: `${itemType} is free` });
     }
 
+    // Security check: Prevent payment replay attacks (sharing payment IDs)
+    const paymentUsed = await Purchase.findOne({ razorpayPaymentId: paymentId, status: 'success' });
+    if (paymentUsed && String(paymentUsed.user) !== String(req.user._id)) {
+      console.warn(`[SECURITY] Payment replay attempt! Payment ${paymentId} used by user ${paymentUsed.user}, attempted by ${req.user._id}`);
+      return res.status(403).json({ message: 'Payment verification failed: payment already consumed' });
+    }
+
     const existing = await Purchase.findOne({ user: req.user._id, itemType, itemId, status: 'success' });
     if (existing) {
       return res.status(200).json({ success: true, purchaseId: existing._id, alreadyPurchased: true });

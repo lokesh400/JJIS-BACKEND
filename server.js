@@ -63,15 +63,15 @@ const corsOptions = {
 };
 
 
-app.use(cors());
-app.use(session({
-    secret: 'mysessionsecret',
-    resave: false,
-    saveUninitialized: false,
-}));
+// app.use(cors());
+// app.use(session({
+//     secret: 'mysessionsecret',
+//     resave: false,
+//     saveUninitialized: false,
+// }));
 
-// app.use(cors(corsOptions));
-// app.options('*', cors(corsOptions));
+app.use(cors(corsOptions));
+app.options('*', cors(corsOptions));
 
 
 // ── Body parsers ───────────────────────────────────────────────────────────
@@ -98,24 +98,24 @@ if (isProd) {
 }
 
 // ── Session ─────────────────────────────────────────────────────────────────
-// app.use(session({
-//   name:              'sid',              // don't leak framework name via cookie
-//   secret:            process.env.SESSION_SECRET,
-//   resave:            false,
-//   saveUninitialized: false,
-//   proxy:             isProd,
-//   store: MongoStore.create({
-//     mongoUrl:   mongoUri,
-//     ttl:        7 * 24 * 60 * 60,        // 7 days (seconds)
-//     autoRemove: 'native',
-//   }),
-//   cookie: {
-//     httpOnly: true,                      // JS cannot read the cookie
-//     secure:   sessionCookieSecure,       // HTTPS-only; required when SameSite=None
-//     sameSite: sessionCookieSameSite,     // strict/lax/none (env configurable)
-//     maxAge:   7 * 24 * 60 * 60 * 1000,  // 7 days (ms)
-//   },
-// }));
+app.use(session({
+  name:              'sid',              // don't leak framework name via cookie
+  secret:            process.env.SESSION_SECRET,
+  resave:            false,
+  saveUninitialized: false,
+  proxy:             isProd,
+  store: MongoStore.create({
+    mongoUrl:   mongoUri,
+    ttl:        7 * 24 * 60 * 60,        // 7 days (seconds)
+    autoRemove: 'native',
+  }),
+  cookie: {
+    httpOnly: true,                      // JS cannot read the cookie
+    secure:   sessionCookieSecure,       // HTTPS-only; required when SameSite=None
+    sameSite: sessionCookieSameSite,     // strict/lax/none (env configurable)
+    maxAge:   7 * 24 * 60 * 60 * 1000,  // 7 days (ms)
+  },
+}));
 
 // ── Passport ─────────────────────────────────────────────────────────────────
 app.use(passport.initialize());

@@ -85,4 +85,12 @@ router.get("/admin/manage-students", (req, res) =>
   res.render("admin/manage-students", { title: "Manage Students" }),
 );
 
+router.get("/admin/live-classes", (req, res) =>
+  res.render("admin/live-classes", { title: "Live Classes" }),
+);
+
+router.get("/admin/batch/:batchId", (req, res) =>
+  res.render("admin/live-batch-detail", { title: "Batch Detail" }),
+);
+
 module.exports = router;

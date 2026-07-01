@@ -1,0 +1,214 @@
+<%- include('../partials/head', { title: cls.title }) %>
+<!-- Load FontAwesome CDN for Custom Player Icons -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<!-- Load Classroom Page Styling -->
+<link rel="stylesheet" href="/css/classroom.css">
+
+<body class="min-h-screen bg-slate-50 text-gray-900">
+  <%- include('../partials/navbar') %>
+  <%- include('../partials/sidebar') %>
+
+  <div class="md:ml-60 pt-14 min-h-screen page-body">
+    <!-- Header -->
+    <div class="page-header px-6 md:px-8 py-5 fade-up">
+      <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <span class="text-xs font-bold text-white/50 uppercase tracking-widest flex items-center gap-1.5 mb-1">
+            <% if (cls.status === 'live') { %>
+              <span class="w-2 h-2 bg-red-500 rounded-full animate-ping"></span>
+              <span class="text-red-400 font-extrabold">LIVE SESSION</span>
+            <% } else { %>
+              <span>RECORDED SESSION</span>
+            <% } %>
+            • <%= cls.subjectId?.name %>
+          </span>
+          <h1 class="text-xl md:text-2xl font-black text-white"><%= cls.title %></h1>
+        </div>
+        <a href="/student/live-classes" class="self-start md:self-center px-4 py-2 bg-white/10 hover:bg-white/20 text-white rounded-xl font-bold text-xs transition flex items-center gap-1">
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>
+          Leave Classroom
+        </a>
+      </div>
+    </div>
+
+    <!-- Classroom Container -->
+    <div class="p-6 md:p-8">
+      <div class="classroom-layout">
+        
+        <!-- Video Player Column -->
+        <div class="video-section">
+          <div class="video-container">
+            <!-- YouTube Iframe API targets this div -->
+            <div id="player-placeholder"></div>
+            
+            <!-- Click Blocker prevents direct contextmenu / player manipulation -->
+            <div class="video-overlay-protection"></div>
+            
+            <!-- DevTools / Focus security blackout container -->
+            <div id="devtools-overlay" class="dev-security-overlay">
+              <i class="fas fa-lock text-3xl mb-3 text-red-500"></i>
+              <h2>Security Blackout Active</h2>
+              <p class="text-xs text-white/70 max-w-xs px-4">DevTools inspection or background window shifting detected. Close tools and return focus to resume play.</p>
+            </div>
+
+            <!-- Dynamic Floating Anti-Piracy Watermarks -->
+            <% 
+              // Construct watermark text with student email and mobile
+              const watermarkText = `${user.email} ${user.mobile ? `(${user.mobile})` : ''}`;
+            %>
+            <div id="watermark-1" class="watermark"><%= watermarkText %></div>
+            <div id="watermark-2" class="watermark"><%= watermarkText %></div>
+            <div id="watermark-3" class="watermark"><%= watermarkText %></div>
+
+            <!-- Custom Video Controls Overlay -->
+            <div class="custom-player-controls">
+              <!-- Play / Pause -->
+              <button id="play-pause-btn" class="control-btn" title="Play/Pause">
+                <i id="play-pause-icon" class="fas fa-play"></i>
+              </button>
+
+              <!-- Progress bar -->
+              <div class="progress-bar-wrapper">
+                <div class="progress-bar-custom">
+                  <div class="progress-fill"></div>
+                </div>
+              </div>
+
+              <!-- Time display -->
+              <div class="time-display">0:00 / 0:00</div>
+
+              <!-- Mute / Volume -->
+              <div class="volume-container">
+                <button id="mute-btn" class="control-btn" title="Mute/Unmute">
+                  <i id="mute-icon" class="fas fa-volume-up"></i>
+                </button>
+                <input id="volume-slider" type="range" min="0" max="100" value="100" class="volume-slider" title="Volume Slider" />
+              </div>
+
+              <!-- Chat Collapser toggle -->
+              <button id="toggle-chat-btn" class="control-btn" title="Toggle Comments">
+                <i class="fas fa-comments"></i>
+              </button>
+
+              <!-- Full Screen Toggle -->
+              <button id="fullscreen-btn" class="control-btn" title="Fullscreen">
+                <i class="fas fa-expand"></i>
+              </button>
+            </div>
+          </div>
+          
+          <div class="mt-5 bg-white border border-gray-100 rounded-3xl p-6 shadow-sm">
+            <h3 class="font-extrabold text-gray-800 text-base">Class description</h3>
+            <p class="text-gray-500 text-sm mt-2 leading-relaxed"><%= cls.description || 'No description provided for this session.' %></p>
+          </div>
+        </div>
+
+        <!-- Sidebar (Chat + Resources) Column -->
+        <div class="classroom-sidebar">
+          <div class="sidebar-tabs">
+            <button class="tab-btn active" data-tab="chat-pane">
+              <i class="fas fa-comments"></i> Live Chat
+            </button>
+            <button class="tab-btn" data-tab="resources-pane">
+              <i class="fas fa-file-pdf"></i> Materials
+            </button>
+          </div>
+
+          <div class="tab-content">
+            <!-- Live Chat Panel -->
+            <div id="chat-pane" class="tab-pane active">
+              <div class="chat-container">
+                <div id="chat-messages" class="chat-messages">
+                  <div class="text-center py-6 text-gray-400 text-xs">
+                    Connecting to live class feed...
+                  </div>
+                </div>
+                <div class="chat-input-area">
+                  <form id="chat-form" class="chat-form">
+                    <input id="chat-input" type="text" autocomplete="off" placeholder="Say something in class..." required class="chat-input" />
+                    <button type="submit" class="chat-send-btn" title="Send message">
+                      <i class="fas fa-paper-plane"></i>
+                    </button>
+                  </form>
+                </div>
+              </div>
+            </div>
+
+            <!-- Notes Panel -->
+            <div id="resources-pane" class="tab-pane resources-panel">
+              <% if (cls.notesFile) { %>
+                <ul class="resource-list">
+                  <li class="resource-item">
+                    <div class="resource-info">
+                      <div class="resource-icon">
+                        <i class="fas fa-file-pdf"></i>
+                      </div>
+                      <div>
+                        <div class="resource-name" title="<%= cls.notesFile %>"><%= cls.notesFile.substring(cls.notesFile.indexOf('-') + 1) %></div>
+                        <div class="text-2xs text-gray-400">Class notes (PDF)</div>
+                      </div>
+                    </div>
+                    <a href="/api/live-classes/download/<%= cls._id %>" download class="p-2 text-indigo-600 hover:bg-indigo-50 rounded-xl transition" title="Download Material">
+                      <i class="fas fa-download"></i>
+                    </a>
+                  </li>
+                </ul>
+              <% } else { %>
+                <div class="text-center py-12 text-gray-400 text-xs">
+                  <i class="fas fa-folder-open text-2xl mb-2 text-gray-300"></i>
+                  <p>No study notes uploaded for this session.</p>
+                </div>
+              <% } %>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- Load Socket.io and Client logic -->
+  <script src="/socket.io/socket.io.js"></script>
+  
+  <script>
+    // Configuration values read by classroom.js
+    window.CLASS_CONFIG = {
+      token: '<%= token %>', // Base64 obfuscated youtube video ID
+      status: '<%= cls.status %>'
+    };
+
+    // Chat configuration
+    const chatUser = {
+      id: '<%= user._id %>',
+      username: '<%= user.name %>',
+      role: '<%= user.role %>'
+    };
+
+    document.addEventListener('DOMContentLoaded', () => {
+      // Connect real-time chat
+      initChat('<%= cls._id %>', chatUser);
+
+      // Wire up devtools blackout trigger class
+      const devtoolsOverlay = document.getElementById('devtools-overlay');
+      const vContainer = document.querySelector('.video-container');
+      
+      const observer = new MutationObserver((mutations) => {
+        mutations.forEach((mutation) => {
+          if (mutation.attributeName === 'class') {
+            const hasBlur = vContainer.classList.contains('secure-blur');
+            if (hasBlur) {
+              devtoolsOverlay.classList.add('active');
+            } else {
+              devtoolsOverlay.classList.remove('active');
+            }
+          }
+        });
+      });
+
+      observer.observe(vContainer, { attributes: true });
+    });
+  </script>
+  
+  <script src="/js/classroom.js"></script>
+</body>
+</html>

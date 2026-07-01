@@ -23,10 +23,48 @@ document.addEventListener('DOMContentLoaded', async () => {
   const prevLectureBtn = document.getElementById('prev-lecture');
   const nextLectureBtn = document.getElementById('next-lecture');
 
+  // Sidebar Tab Elements
+  const asideTabRoadmap = document.getElementById('aside-tab-roadmap');
+  const asideTabChat = document.getElementById('aside-tab-chat');
+  const roadmapPanel = document.getElementById('roadmap-panel');
+  const chatPanel = document.getElementById('chat-panel');
+  const chatForm = document.getElementById('chat-form');
+  const chatInput = document.getElementById('chat-input');
+
   let course = null;
   let activeLecture = null;
-  let playbackRequestId = 0;
+  let socket = null;
   let lectureSearchQuery = '';
+  let watermarkInterval = null;
+
+  // Anti-Piracy Settings
+  setupAntiPiracy();
+
+  // Sidebar Tab Switch Handler
+  if (asideTabRoadmap && asideTabChat && roadmapPanel && chatPanel) {
+    asideTabRoadmap.addEventListener('click', () => {
+      asideTabRoadmap.classList.add('active');
+      asideTabRoadmap.classList.remove('text-white/80');
+      asideTabChat.classList.remove('active');
+      asideTabChat.classList.add('text-white/80');
+      roadmapPanel.classList.remove('hidden');
+      chatPanel.classList.add('hidden');
+    });
+
+    asideTabChat.addEventListener('click', () => {
+      asideTabChat.classList.add('active');
+      asideTabChat.classList.remove('text-white/80');
+      asideTabRoadmap.classList.remove('active');
+      asideTabRoadmap.classList.add('text-white/80');
+      chatPanel.classList.remove('hidden');
+      roadmapPanel.classList.add('hidden');
+      
+      const chatMessages = document.getElementById('chat-messages');
+      if (chatMessages) {
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+      }
+    });
+  }
 
   function escapeHtml(value) {
     return String(value)
@@ -47,59 +85,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   }
 
-  function formatTime(secondsValue) {
-    const total = Math.max(0, Math.floor(Number(secondsValue) || 0));
-    const hours = Math.floor(total / 3600);
-    const minutes = Math.floor((total % 3600) / 60);
-    const seconds = total % 60;
-
-    if (hours > 0) {
-      return `${String(hours)}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
-    }
-    return `${String(minutes)}:${String(seconds).padStart(2, '0')}`;
-  }
-
-  function getEmbedUrl(videoLink) {
-    const raw = String(videoLink || '').trim();
-    if (!raw) return '';
-
-    try {
-      const parsed = new URL(raw);
-      const host = parsed.hostname.toLowerCase();
-
-      if (host === 'youtu.be') {
-        const id = parsed.pathname.replace(/^\/+/, '').split('/')[0];
-        return id ? `https://www.youtube.com/embed/${encodeURIComponent(id)}?rel=0` : '';
-      }
-
-      if (host.endsWith('youtube.com')) {
-        if (parsed.pathname.startsWith('/embed/')) {
-          const id = parsed.pathname.split('/embed/')[1]?.split('/')[0];
-          return id ? `https://www.youtube.com/embed/${encodeURIComponent(id)}?rel=0` : '';
-        }
-        const id = parsed.searchParams.get('v');
-        return id ? `https://www.youtube.com/embed/${encodeURIComponent(id)}?rel=0` : '';
-      }
-
-      if (host === 'vimeo.com' || host.endsWith('.vimeo.com')) {
-        const segments = parsed.pathname.split('/').filter(Boolean);
-        const id = segments.find((part) => /^\d+$/.test(part));
-        return id ? `https://player.vimeo.com/video/${encodeURIComponent(id)}` : '';
-      }
-    } catch (_) {
-      return '';
-    }
-
-    return '';
-  }
-
-  function updateQuery() {
-    const next = new URLSearchParams(window.location.search);
-    next.set('lectureId', activeLecture?._id || '');
-    next.set('tab', activeTab);
-    window.history.replaceState({}, '', `${window.location.pathname}?${next.toString()}`);
-  }
-
   function getActiveLectureIndex() {
     const lectures = Array.isArray(course?.lectures) ? course.lectures : [];
     return lectures.findIndex((lecture) => String(lecture._id) === String(activeLecture?._id));
@@ -118,765 +103,677 @@ document.addEventListener('DOMContentLoaded', async () => {
     nextLectureBtn.classList.toggle('opacity-50', nextLectureBtn.disabled);
   }
 
-  async function renderVideoPanel() {
-    const requestId = ++playbackRequestId;
-
-    const lectureId = String(activeLecture?._id || '');
-    if (!lectureId) {
-      playerPanelEl.innerHTML = '<div class="h-full flex items-center justify-center text-sm text-white/60">No lecture selected.</div>';
-      return;
-    }
-
-    playerPanelEl.innerHTML = '<div class="h-full flex items-center justify-center text-sm text-white/60">Preparing secure stream...</div>';
-
-    let playbackData;
-    try {
-      playbackData = await API.get(`/courses/published/${courseId}/lectures/${lectureId}/playback`);
-    } catch (error) {
-      if (requestId !== playbackRequestId) return;
-      playerPanelEl.innerHTML = `<div class="h-full flex items-center justify-center text-sm text-white/70 px-6 text-center">${escapeHtml(error.message || 'Unable to load signed playback URL')}</div>`;
-      return;
-    }
-
-    if (requestId !== playbackRequestId) return;
-
-    const playbackUrl = String(playbackData?.playbackUrl || '').trim();
-    if (!playbackUrl) {
-      playerPanelEl.innerHTML = '<div class="h-full flex items-center justify-center text-sm text-white/60">No playback URL returned.</div>';
-      return;
-    }
-
-    const title = escapeHtml(activeLecture.title || 'Lecture');
-    playerPanelEl.innerHTML = `
-      <div class="h-full flex flex-col">
-        <div class="px-4 py-3 border-b border-white/10 bg-slate-950/70 flex items-center justify-between gap-3">
-          <p class="text-sm font-semibold truncate">${title}</p>
-          <span class="text-[11px] px-2 py-1 rounded-md bg-orange-500/20 text-orange-100 border border-orange-300/30">Now Playing</span>
-        </div>
-
-        <div id="video-shell" tabindex="0" class="flex-1 relative bg-black outline-none select-none">
-          <video id="secure-video" class="w-full h-full object-contain" preload="metadata" playsinline controlslist="nodownload noremoteplayback" disablepictureinpicture></video>
-
-          <div id="video-loading-overlay" class="absolute inset-0 z-30 flex items-center justify-center bg-black/60">
-            <div class="flex items-center gap-2.5 px-3 py-2 rounded-full bg-black/65 border border-white/20 text-xs font-semibold text-white">
-              <span class="spinner" style="width: 1rem; height: 1rem; border-width: 2px;"></span>
-              <span>Loading video...</span>
-            </div>
-          </div>
-
-          <button id="video-seek-left-zone" type="button" class="md:hidden absolute left-0 top-0 bottom-0 w-1/2 z-10" aria-label="Double tap left to rewind"></button>
-          <button id="video-seek-right-zone" type="button" class="md:hidden absolute right-0 top-0 bottom-0 w-1/2 z-10" aria-label="Double tap right to forward"></button>
-
-          <div id="video-seek-feedback" class="pointer-events-none absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-20 px-3 py-1.5 rounded-full bg-black/65 border border-white/20 text-xs font-semibold text-white opacity-0 transition-opacity duration-150">+10s</div>
-
-          <div id="video-top-controls" class="absolute inset-x-0 top-0 z-20 p-3 bg-gradient-to-b from-black/65 via-black/20 to-transparent transition-opacity duration-200">
-            <div class="flex items-start justify-between gap-3">
-              <div class="max-w-[70%]">
-                <p class="text-xs md:text-sm font-semibold text-white/95 truncate">${title}</p>
-                <p class="text-[11px] text-white/65">Secure Lecture Stream</p>
-              </div>
-              <div class="relative">
-                <button id="video-settings-btn" type="button" class="w-9 h-9 rounded-full text-base font-semibold bg-black/55 border border-white/25 hover:bg-black/75" aria-label="Player settings">&#9881;</button>
-              <div id="video-settings-popover" class="hidden absolute right-0 top-11 min-w-44 rounded-xl border border-white/20 bg-slate-950/95 p-2.5 shadow-2xl">
-                <p class="text-[11px] uppercase tracking-wide text-white/45 px-1">Playback Speed</p>
-                <div id="video-speed-options" class="mt-1 space-y-1">
-                  <button type="button" data-speed="0.75" class="video-speed-option w-full text-left text-xs rounded-md px-2 py-1.5 text-white/85 hover:bg-white/10">0.75x</button>
-                  <button type="button" data-speed="1" class="video-speed-option w-full text-left text-xs rounded-md px-2 py-1.5 text-white bg-orange-500/25 border border-orange-400/45">1x</button>
-                  <button type="button" data-speed="1.25" class="video-speed-option w-full text-left text-xs rounded-md px-2 py-1.5 text-white/85 hover:bg-white/10">1.25x</button>
-                  <button type="button" data-speed="1.5" class="video-speed-option w-full text-left text-xs rounded-md px-2 py-1.5 text-white/85 hover:bg-white/10">1.5x</button>
-                  <button type="button" data-speed="1.75" class="video-speed-option w-full text-left text-xs rounded-md px-2 py-1.5 text-white/85 hover:bg-white/10">1.75x</button>
-                  <button type="button" data-speed="2" class="video-speed-option w-full text-left text-xs rounded-md px-2 py-1.5 text-white/85 hover:bg-white/10">2x</button>
-                </div>
-
-                <p class="text-[11px] uppercase tracking-wide text-white/45 px-1 mt-2">Quality</p>
-                <div class="mt-1">
-                  <button type="button" id="video-quality-label" class="w-full text-left text-xs rounded-md px-2 py-1.5 text-white bg-cyan-500/20 border border-cyan-400/35">Auto (Source)</button>
-                </div>
-              </div>
-              </div>
-            </div>
-          </div>
-
-          <div id="video-center-controls" class="absolute inset-0 z-20 flex items-center justify-center gap-3 pointer-events-none transition-opacity duration-200">
-            <button id="video-center-backward" type="button" class="pointer-events-auto w-12 h-12 md:w-14 md:h-14 rounded-full bg-black/60 border border-white/30 text-white text-xl hover:bg-black/80" aria-label="Back 10 seconds">&#8630;</button>
-            <button id="video-center-play" type="button" class="pointer-events-auto w-14 h-14 md:w-16 md:h-16 rounded-full bg-black/70 border border-white/35 text-white text-2xl hover:bg-black/85" aria-label="Play or pause">&#9658;</button>
-            <button id="video-center-forward" type="button" class="pointer-events-auto w-12 h-12 md:w-14 md:h-14 rounded-full bg-black/60 border border-white/30 text-white text-xl hover:bg-black/80" aria-label="Forward 10 seconds">&#8631;</button>
-          </div>
-
-          <button id="video-overlay-play" type="button" class="absolute inset-0 flex items-center justify-center pointer-events-none opacity-0 transition-opacity duration-200" aria-label="Play or pause">
-            <span class="w-16 h-16 rounded-full bg-black/55 border border-white/20 text-white text-2xl flex items-center justify-center">&#9658;</span>
-          </button>
-
-          <div id="video-controls" class="absolute inset-x-0 bottom-0 p-3 bg-gradient-to-t from-black/90 via-black/55 to-transparent transition-opacity duration-200">
-            <input id="video-progress" type="range" min="0" max="1000" value="0" class="w-full accent-orange-500 appearance-none h-1.5 rounded-lg bg-white/25" />
-            <div class="mt-2 flex items-center justify-between gap-2">
-              <div class="flex items-center gap-1.5 md:gap-2">
-                <button id="video-play-toggle" type="button" class="w-9 h-9 rounded-full text-base bg-white/20 hover:bg-white/30" aria-label="Play or pause">&#9658;</button>
-                <button id="video-backward" type="button" class="w-9 h-9 rounded-full text-base bg-white/20 hover:bg-white/30" aria-label="Back 10 seconds">&#8630;</button>
-                <button id="video-forward" type="button" class="w-9 h-9 rounded-full text-base bg-white/20 hover:bg-white/30" aria-label="Forward 10 seconds">&#8631;</button>
-                <button id="video-mute" type="button" class="w-9 h-9 rounded-full text-sm bg-white/20 hover:bg-white/30" aria-label="Mute or unmute">&#128266;</button>
-                <input id="video-volume" type="range" min="0" max="100" value="100" class="hidden md:block w-20 accent-cyan-400" />
-              </div>
-
-              <div class="flex items-center gap-1.5 md:gap-2">
-                <span id="video-time" class="text-xs text-white/80">0:00 / 0:00</span>
-                <button id="video-pip" type="button" class="px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-white/20 hover:bg-white/30">PiP</button>
-                <button id="video-fullscreen" type="button" class="w-9 h-9 rounded-full text-sm bg-white/20 hover:bg-white/30" aria-label="Toggle fullscreen">&#9974;</button>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    `;
-
-    const videoEl = document.getElementById('secure-video');
-    const playToggleEl = document.getElementById('video-play-toggle');
-    const backwardEl = document.getElementById('video-backward');
-    const forwardEl = document.getElementById('video-forward');
-    const muteEl = document.getElementById('video-mute');
-    const progressEl = document.getElementById('video-progress');
-    const timeEl = document.getElementById('video-time');
-    const fullscreenEl = document.getElementById('video-fullscreen');
-    const pipEl = document.getElementById('video-pip');
-    const overlayPlayEl = document.getElementById('video-overlay-play');
-    const controlsEl = document.getElementById('video-controls');
-    const topControlsEl = document.getElementById('video-top-controls');
-    const centerControlsEl = document.getElementById('video-center-controls');
-    const videoShellEl = document.getElementById('video-shell');
-    const volumeEl = document.getElementById('video-volume');
-    const loadingOverlayEl = document.getElementById('video-loading-overlay');
-    const settingsBtnEl = document.getElementById('video-settings-btn');
-    const settingsPopoverEl = document.getElementById('video-settings-popover');
-    const speedOptionEls = Array.from(document.querySelectorAll('.video-speed-option'));
-    const qualityLabelEl = document.getElementById('video-quality-label');
-    const centerPlayEl = document.getElementById('video-center-play');
-    const centerBackwardEl = document.getElementById('video-center-backward');
-    const centerForwardEl = document.getElementById('video-center-forward');
-    const leftSeekZoneEl = document.getElementById('video-seek-left-zone');
-    const rightSeekZoneEl = document.getElementById('video-seek-right-zone');
-    const seekFeedbackEl = document.getElementById('video-seek-feedback');
-
-    let seeking = false;
-    let controlsHideTimeout = null;
-    let isSettingsOpen = false;
-    let lastLeftTapAt = 0;
-    let lastRightTapAt = 0;
-    let seekFeedbackTimeout = null;
-    let leftTapTimeout = null;
-    let rightTapTimeout = null;
-    let controlsManuallyHidden = false;
-    let hasStartedPlayback = false;
-    let lastSettingsToggleAt = 0;
-
-    function showLoadingOverlay() {
-      if (loadingOverlayEl) {
-        loadingOverlayEl.classList.remove('hidden');
-      }
-    }
-
-    function hideLoadingOverlay() {
-      if (loadingOverlayEl) {
-        loadingOverlayEl.classList.add('hidden');
-      }
-    }
-
-    if (qualityLabelEl) {
-      qualityLabelEl.textContent = 'Auto (Source)';
-    }
-
-    function setControlsVisible(isVisible) {
-      const hiddenClasses = ['opacity-0', 'pointer-events-none'];
-      const targetSets = [controlsEl, topControlsEl, centerControlsEl];
-
-      targetSets.forEach((target) => {
-        if (!target) return;
-        target.classList.toggle(hiddenClasses[0], !isVisible);
-        target.classList.toggle(hiddenClasses[1], !isVisible);
-      });
-    }
-
-    function showSeekFeedback(deltaSeconds) {
-      if (!seekFeedbackEl) return;
-      seekFeedbackEl.textContent = deltaSeconds > 0 ? `+${deltaSeconds}s` : `${deltaSeconds}s`;
-      seekFeedbackEl.classList.remove('opacity-0');
-      seekFeedbackEl.classList.add('opacity-100');
-
-      if (seekFeedbackTimeout) {
-        clearTimeout(seekFeedbackTimeout);
-      }
-
-      seekFeedbackTimeout = setTimeout(() => {
-        seekFeedbackEl.classList.remove('opacity-100');
-        seekFeedbackEl.classList.add('opacity-0');
-      }, 420);
-    }
-
-    function quickSeek(deltaSeconds) {
-      const duration = Number.isFinite(videoEl.duration) ? videoEl.duration : videoEl.currentTime + Math.abs(deltaSeconds);
-      const next = Math.max(0, Math.min(duration, (videoEl.currentTime || 0) + deltaSeconds));
-      videoEl.currentTime = next;
-      showSeekFeedback(deltaSeconds);
-      scheduleControlsAutoHide();
-    }
-
-    function updateSpeedOptionsUi() {
-      const currentRate = Number(videoEl.playbackRate || 1);
-      speedOptionEls.forEach((optionEl) => {
-        const value = Number(optionEl.dataset.speed || 1);
-        const isSelected = Math.abs(value - currentRate) < 0.001;
-        optionEl.className = `video-speed-option w-full text-left text-xs rounded-md px-2 py-1.5 ${isSelected ? 'text-white bg-orange-500/25 border border-orange-400/45' : 'text-white/85 hover:bg-white/10'}`;
-      });
-    }
-
-    function setSettingsOpen(isOpen) {
-      isSettingsOpen = isOpen;
-      if (!settingsPopoverEl) return;
-
-      settingsPopoverEl.classList.toggle('hidden', !isOpen);
-      if (isOpen) {
-        setControlsVisible(true);
-      }
-    }
-
-    function updateProgressVisual() {
-      const duration = Number.isFinite(videoEl.duration) ? videoEl.duration : 0;
-      const current = videoEl.currentTime || 0;
-      const playedPercent = duration > 0 ? Math.min(100, Math.max(0, (current / duration) * 100)) : 0;
-
-      let bufferedEnd = 0;
-      if (duration > 0 && videoEl.buffered?.length) {
-        for (let i = 0; i < videoEl.buffered.length; i += 1) {
-          const start = videoEl.buffered.start(i);
-          const end = videoEl.buffered.end(i);
-          if (current >= start && current <= end) {
-            bufferedEnd = end;
-            break;
-          }
-          bufferedEnd = Math.max(bufferedEnd, end);
-        }
-      }
-
-      const bufferedPercent = duration > 0 ? Math.min(100, Math.max(playedPercent, (bufferedEnd / duration) * 100)) : playedPercent;
-      progressEl.style.background = `linear-gradient(to right, #f97316 0%, #f97316 ${playedPercent}%, rgba(148,163,184,0.75) ${playedPercent}%, rgba(148,163,184,0.75) ${bufferedPercent}%, rgba(148,163,184,0.26) ${bufferedPercent}%, rgba(148,163,184,0.26) 100%)`;
-    }
-
-    function scheduleControlsAutoHide() {
-      if (controlsHideTimeout) {
-        clearTimeout(controlsHideTimeout);
-      }
-
-      if (controlsManuallyHidden) {
-        setControlsVisible(false);
-        return;
-      }
-
-      setControlsVisible(true);
-
-      if (videoEl.paused || isSettingsOpen) {
-        return;
-      }
-
-      controlsHideTimeout = setTimeout(() => {
-        if (controlsManuallyHidden) {
-          setControlsVisible(false);
-          return;
-        }
-
-        setControlsVisible(false);
-      }, 2400);
-    }
-
-    function toggleControlsByTap() {
-      controlsManuallyHidden = !controlsManuallyHidden;
-
-      if (controlsManuallyHidden) {
-        setSettingsOpen(false);
-        if (controlsHideTimeout) {
-          clearTimeout(controlsHideTimeout);
-        }
-        setControlsVisible(false);
-        return;
-      }
-
-      scheduleControlsAutoHide();
-    }
-
-    function isFullscreenActive() {
-      return !!(
-        document.fullscreenElement ||
-        document.webkitFullscreenElement ||
-        document.mozFullScreenElement ||
-        document.msFullscreenElement
-      );
-    }
-
-    async function requestPlayerFullscreen() {
-      if (!videoShellEl) return;
-
-      const shell = videoShellEl;
-      const shellAny = shell;
-
-      if (shell.requestFullscreen) {
-        await shell.requestFullscreen();
-        return;
-      }
-
-      if (shellAny.webkitRequestFullscreen) {
-        shellAny.webkitRequestFullscreen();
-        return;
-      }
-
-      if (shellAny.msRequestFullscreen) {
-        shellAny.msRequestFullscreen();
-        return;
-      }
-
-      if (videoEl.webkitEnterFullscreen) {
-        videoEl.webkitEnterFullscreen();
-      }
-    }
-
-    async function exitPlayerFullscreen() {
-      const docAny = document;
-      const videoAny = videoEl;
-
-      if (document.exitFullscreen) {
-        await document.exitFullscreen();
-        return;
-      }
-
-      if (docAny.webkitExitFullscreen) {
-        docAny.webkitExitFullscreen();
-        return;
-      }
-
-      if (docAny.msExitFullscreen) {
-        docAny.msExitFullscreen();
-        return;
-      }
-
-      if (videoAny.webkitDisplayingFullscreen && videoAny.webkitExitFullscreen) {
-        videoAny.webkitExitFullscreen();
-      }
-    }
-
-    function updateFullscreenUi() {
-      const active = isFullscreenActive();
-      fullscreenEl.innerHTML = active ? '&#10005;' : '&#9974;';
-      fullscreenEl.setAttribute('aria-label', active ? 'Exit fullscreen' : 'Toggle fullscreen');
-    }
-
-    function togglePlayPause() {
-      if (videoEl.paused) {
-        videoEl.play().catch(() => {});
-      } else {
-        videoEl.pause();
-      }
-    }
-
-    function syncTime() {
-      const current = videoEl.currentTime || 0;
-      const duration = Number.isFinite(videoEl.duration) ? videoEl.duration : 0;
-
-      if (!seeking && duration > 0) {
-        progressEl.value = String(Math.floor((current / duration) * 1000));
-      }
-
-      updateProgressVisual();
-
-      timeEl.textContent = `${formatTime(current)} / ${formatTime(duration)}`;
-      playToggleEl.innerHTML = videoEl.paused ? '&#9658;' : '&#10074;&#10074;';
-      muteEl.innerHTML = videoEl.muted || (videoEl.volume || 0) === 0 ? '&#128263;' : '&#128266;';
-      overlayPlayEl.classList.toggle('opacity-100', videoEl.paused);
-      overlayPlayEl.classList.toggle('opacity-0', !videoEl.paused);
-      overlayPlayEl.classList.toggle('pointer-events-auto', videoEl.paused);
-      overlayPlayEl.classList.toggle('pointer-events-none', !videoEl.paused);
-      overlayPlayEl.querySelector('span').innerHTML = videoEl.paused ? '&#9658;' : '&#10074;&#10074;';
-      if (centerPlayEl) {
-        centerPlayEl.innerHTML = videoEl.paused ? '&#9658;' : '&#10074;&#10074;';
-      }
-
-      if (volumeEl) {
-        volumeEl.value = String(Math.round((videoEl.volume || 0) * 100));
-      }
-
-      updateSpeedOptionsUi();
-    }
-
-    playToggleEl.addEventListener('click', () => {
-      togglePlayPause();
-      scheduleControlsAutoHide();
-    });
-
-    if (centerPlayEl) {
-      centerPlayEl.addEventListener('click', (event) => {
-        event.stopPropagation();
-        togglePlayPause();
-        scheduleControlsAutoHide();
-      });
-    }
-
-    if (centerBackwardEl) {
-      centerBackwardEl.addEventListener('click', (event) => {
-        event.stopPropagation();
-        quickSeek(-10);
-      });
-    }
-
-    if (centerForwardEl) {
-      centerForwardEl.addEventListener('click', (event) => {
-        event.stopPropagation();
-        quickSeek(10);
-      });
-    }
-
-    overlayPlayEl.addEventListener('click', () => {
-      togglePlayPause();
-      scheduleControlsAutoHide();
-    });
-
-    backwardEl.addEventListener('click', () => {
-      quickSeek(-10);
-    });
-
-    forwardEl.addEventListener('click', () => {
-      quickSeek(10);
-    });
-
-    muteEl.addEventListener('click', () => {
-      videoEl.muted = !videoEl.muted;
-      syncTime();
-      scheduleControlsAutoHide();
-    });
-
-    if (volumeEl) {
-      volumeEl.addEventListener('input', () => {
-        const volume = Math.max(0, Math.min(1, Number(volumeEl.value) / 100));
-        videoEl.volume = volume;
-        videoEl.muted = volume === 0;
-        syncTime();
-      });
-    }
-
-    progressEl.addEventListener('input', () => {
-      seeking = true;
-      const duration = Number.isFinite(videoEl.duration) ? videoEl.duration : 0;
-      if (duration > 0) {
-        const target = (Number(progressEl.value) / 1000) * duration;
-        timeEl.textContent = `${formatTime(target)} / ${formatTime(duration)}`;
-      }
-      scheduleControlsAutoHide();
-    });
-
-    progressEl.addEventListener('change', () => {
-      const duration = Number.isFinite(videoEl.duration) ? videoEl.duration : 0;
-      if (duration > 0) {
-        videoEl.currentTime = (Number(progressEl.value) / 1000) * duration;
-      }
-      seeking = false;
-      scheduleControlsAutoHide();
-    });
-
-    speedOptionEls.forEach((optionEl) => {
-      optionEl.addEventListener('click', () => {
-        const speed = Number(optionEl.dataset.speed || 1);
-        videoEl.playbackRate = speed;
-        updateSpeedOptionsUi();
-        setSettingsOpen(false);
-        scheduleControlsAutoHide();
-      });
-    });
-
-    if (settingsBtnEl) {
-      const onSettingsToggle = (event) => {
-        const now = Date.now();
-        if (now - lastSettingsToggleAt < 220) {
-          event.preventDefault();
-          event.stopPropagation();
-          return;
-        }
-
-        lastSettingsToggleAt = now;
-        event.preventDefault();
-        event.stopPropagation();
-        controlsManuallyHidden = false;
-        setControlsVisible(true);
-        setSettingsOpen(!isSettingsOpen);
-        scheduleControlsAutoHide();
-      };
-
-      // pointerdown improves reliability on mobile where click may be delayed.
-      settingsBtnEl.addEventListener('pointerdown', onSettingsToggle);
-      settingsBtnEl.addEventListener('touchstart', onSettingsToggle, { passive: false });
-      settingsBtnEl.addEventListener('click', onSettingsToggle);
-    }
-
-    pipEl.addEventListener('click', async () => {
-      try {
-        if (document.pictureInPictureElement === videoEl) {
-          await document.exitPictureInPicture();
-          return;
-        }
-
-        if (document.pictureInPictureEnabled && !videoEl.disablePictureInPicture) {
-          await videoEl.requestPictureInPicture();
-        }
-      } catch (_) {
-        toast.error('Picture-in-picture is not available in this browser');
-      }
-      scheduleControlsAutoHide();
-    });
-
-    fullscreenEl.addEventListener('click', async () => {
-      if (!videoShellEl) return;
-
-      try {
-        if (isFullscreenActive()) {
-          await exitPlayerFullscreen();
-        } else {
-          await requestPlayerFullscreen();
-        }
-      } catch (_) {
-        // no-op
-      }
-      scheduleControlsAutoHide();
-    });
-
-    document.addEventListener('fullscreenchange', () => {
-      updateFullscreenUi();
-      scheduleControlsAutoHide();
-    });
-    document.addEventListener('webkitfullscreenchange', () => {
-      updateFullscreenUi();
-      scheduleControlsAutoHide();
-    });
-    videoEl.addEventListener('webkitbeginfullscreen', () => {
-      updateFullscreenUi();
-      scheduleControlsAutoHide();
-    });
-    videoEl.addEventListener('webkitendfullscreen', () => {
-      updateFullscreenUi();
-      scheduleControlsAutoHide();
-    });
-
-    videoShellEl.addEventListener('mousemove', scheduleControlsAutoHide);
-    videoShellEl.addEventListener('touchstart', scheduleControlsAutoHide, { passive: true });
-    videoShellEl.addEventListener('dblclick', () => {
-      fullscreenEl.click();
-    });
-
-    videoShellEl.addEventListener('click', (event) => {
-      const inSettings = event.target.closest('#video-settings-btn') || event.target.closest('#video-settings-popover');
-      if (inSettings) return;
-
-      const interactiveControl = event.target.closest('#video-controls button, #video-controls input, #video-controls select, #video-top-controls button, #video-center-controls button');
-      if (interactiveControl) {
-        return;
-      }
-
-      toggleControlsByTap();
-    });
-
-    document.addEventListener('pointerdown', (event) => {
-      if (!isSettingsOpen) return;
-      const inSettings = event.target.closest('#video-settings-btn') || event.target.closest('#video-settings-popover');
-      if (!inSettings) {
-        setSettingsOpen(false);
-      }
-    });
-
-    if (leftSeekZoneEl) {
-      leftSeekZoneEl.addEventListener('touchend', (event) => {
-        event.preventDefault();
-        const now = Date.now();
-        if (now - lastLeftTapAt < 280) {
-          if (leftTapTimeout) {
-            clearTimeout(leftTapTimeout);
-            leftTapTimeout = null;
-          }
-          quickSeek(-10);
-          lastLeftTapAt = 0;
-          return;
-        }
-        lastLeftTapAt = now;
-
-        leftTapTimeout = setTimeout(() => {
-          toggleControlsByTap();
-        }, 300);
-      }, { passive: false });
-    }
-
-    if (rightSeekZoneEl) {
-      rightSeekZoneEl.addEventListener('touchend', (event) => {
-        event.preventDefault();
-        const now = Date.now();
-        if (now - lastRightTapAt < 280) {
-          if (rightTapTimeout) {
-            clearTimeout(rightTapTimeout);
-            rightTapTimeout = null;
-          }
-          quickSeek(10);
-          lastRightTapAt = 0;
-          return;
-        }
-        lastRightTapAt = now;
-
-        rightTapTimeout = setTimeout(() => {
-          toggleControlsByTap();
-        }, 300);
-      }, { passive: false });
-    }
-
-    videoEl.addEventListener('play', syncTime);
-    videoEl.addEventListener('pause', syncTime);
-    videoEl.addEventListener('timeupdate', syncTime);
-    videoEl.addEventListener('loadedmetadata', syncTime);
-    videoEl.addEventListener('progress', updateProgressVisual);
-    videoEl.addEventListener('ended', syncTime);
-    videoEl.addEventListener('loadeddata', () => {
-      // If data is ready for the first frame, don't block the player UI.
-      hideLoadingOverlay();
-    });
-    videoEl.addEventListener('canplay', () => {
-      hideLoadingOverlay();
-    });
-    videoEl.addEventListener('playing', () => {
-      hasStartedPlayback = true;
-      hideLoadingOverlay();
-    });
-    videoEl.addEventListener('waiting', () => {
-      if (!hasStartedPlayback && loadingOverlayEl) {
-        showLoadingOverlay();
-      }
-    });
-    videoEl.addEventListener('loadstart', () => {
-      showLoadingOverlay();
-      hasStartedPlayback = false;
-    });
-    videoEl.addEventListener('timeupdate', () => {
-      if ((videoEl.currentTime || 0) > 0) {
-        hasStartedPlayback = true;
-        hideLoadingOverlay();
-      }
-    });
-    videoEl.addEventListener('error', () => {
-      timeEl.textContent = 'Playback error';
-      hideLoadingOverlay();
-    });
-
-    videoShellEl.onkeydown = (event) => {
-      const key = String(event.key || '').toLowerCase();
-      if (!key) return;
-
-      const isTyping = /input|textarea|select/i.test(event.target?.tagName || '');
-      if (isTyping) return;
-
-      if (key === ' ' || key === 'k') {
-        event.preventDefault();
-        togglePlayPause();
-      }
-
-      if (key === 'j') {
-        event.preventDefault();
-        quickSeek(-10);
-      }
-
-      if (key === 'l') {
-        event.preventDefault();
-        quickSeek(10);
-      }
-
-      if (key === 'm') {
-        event.preventDefault();
-        videoEl.muted = !videoEl.muted;
-        syncTime();
-      }
-
-      if (key === 'f') {
-        event.preventDefault();
-        fullscreenEl.click();
-      }
-
-      scheduleControlsAutoHide();
-    };
-
-    videoEl.src = playbackUrl;
-    videoEl.load();
-    videoShellEl.focus();
-    updateFullscreenUi();
-    updateProgressVisual();
-    updateSpeedOptionsUi();
-    scheduleControlsAutoHide();
+  function updateQuery() {
+    const next = new URLSearchParams(window.location.search);
+    next.set('lectureId', activeLecture?._id || '');
+    next.set('tab', activeTab);
+    window.history.replaceState({}, '', `${window.location.pathname}?${next.toString()}`);
   }
 
-  function renderPanel() {
+  async function renderPanel() {
     if (!activeLecture) {
       playerPanelEl.innerHTML = '<div class="h-full flex items-center justify-center text-sm text-white/60">No lecture selected.</div>';
       return;
     }
 
-    const pdfs = Array.isArray(activeLecture.pdfs) ? activeLecture.pdfs : [];
-
     lectureTitleEl.textContent = activeLecture.title || 'Lecture';
 
+    const pdfs = Array.isArray(activeLecture.pdfs) ? activeLecture.pdfs : [];
+
     if (activeTab === 'attachments') {
-      if (!pdfs.length) {
-        playerPanelEl.innerHTML = '<div class="h-full flex items-center justify-center text-sm text-white/60">No attachments for this lecture.</div>';
-        return;
+      // Show attachments view
+      if (window.player && typeof window.player.destroy === 'function') {
+        try { window.player.destroy(); } catch (_) {}
       }
-
       playerPanelEl.innerHTML = `
-        <div class="h-full overflow-auto p-4 md:p-6">
-          <h2 class="text-lg font-semibold mb-4">Lecture Attachments</h2>
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-3.5">
-            ${pdfs.map((pdf, index) => `
-              <a href="${sanitizeUrl(pdf.link)}" target="_blank" rel="noopener" class="p-3.5 rounded-xl border border-white/10 bg-slate-900/70 hover:bg-slate-800 transition">
-                <p class="text-xs text-cyan-200/70">Attachment ${index + 1}</p>
-                <p class="text-sm font-semibold mt-1">${escapeHtml(pdf.title || 'PDF')}</p>
-                <p class="text-xs text-cyan-300/80 mt-1">Open in new tab</p>
-              </a>
-            `).join('')}
-          </div>
+        <div class="h-full overflow-auto p-4 md:p-6 bg-slate-900/60">
+          <h2 class="text-lg font-semibold mb-4 text-cyan-400">Lecture Attachments</h2>
+          ${pdfs.length === 0 ? `
+            <div class="text-center py-12 text-white/40 text-xs">
+              <i class="fas fa-folder-open text-2xl mb-2 text-white/30"></i>
+              <p>No attachments available for this lecture.</p>
+            </div>
+          ` : `
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+              ${pdfs.map((pdf, index) => `
+                <a href="${sanitizeUrl(pdf.link)}" target="_blank" rel="noopener" class="p-3.5 rounded-xl border border-white/10 bg-slate-900/70 hover:bg-slate-800 transition">
+                  <p class="text-xs text-cyan-300/70">Attachment ${index + 1}</p>
+                  <p class="text-sm font-semibold mt-1">${escapeHtml(pdf.title || 'PDF')}</p>
+                  <p class="text-xs text-cyan-400/80 mt-1">Open in new tab</p>
+                </a>
+              `).join('')}
+            </div>
+          `}
         </div>
       `;
       return;
     }
 
-    const rawVideoLink = String(activeLecture.videoLink || '').trim();
-    if (!rawVideoLink) {
-      playerPanelEl.innerHTML = '<div class="h-full flex items-center justify-center text-sm text-white/60">No video link available for this lecture.</div>';
-      return;
-    }
+    // Load active lecture playback token
+    try {
+      const playbackData = await API.get(`/courses/published/${courseId}/lectures/${activeLecture._id}/playback`);
+      const youtubeVideoId = atob(playbackData.token);
+      const status = playbackData.status || 'ended';
 
-    const embedUrl = getEmbedUrl(rawVideoLink);
-    if (embedUrl) {
+      // Setup window config for player scripts
+      window.CLASS_CONFIG = { token: playbackData.token, status: status };
+
+      // Always restore clean player HTML to reset DOM event listeners and indicators
       playerPanelEl.innerHTML = `
-        <div class="h-full flex flex-col">
-          <div class="px-4 py-3 border-b border-white/10 flex items-center justify-between gap-3">
-            <p class="text-sm font-semibold truncate">${escapeHtml(activeLecture.title || 'Lecture')}</p>
-            <span class="text-[11px] px-2 py-1 rounded-md bg-cyan-500/20 text-cyan-100 border border-cyan-400/30">Embedded Player</span>
+        <div class="video-container w-full relative">
+          <div id="player-placeholder" class="absolute inset-0 w-full h-full"></div>
+          <div class="video-overlay-protection absolute inset-x-0 top-0 bottom-[50px] z-10"></div>
+          <div id="devtools-overlay" class="dev-security-overlay absolute inset-0 z-[100] flex flex-col items-center justify-center bg-black/95 text-white opacity-0 pointer-events-none transition-opacity duration-300 text-center">
+            <i class="fas fa-lock text-3xl mb-3 text-red-500"></i>
+            <h2 class="text-lg font-bold text-red-500 mb-1">Security Blackout Active</h2>
+            <p class="text-xs text-white/70 max-w-xs px-4">DevTools inspection or background window shifting detected. Close tools and return focus to resume play.</p>
           </div>
-          <div class="flex-1 bg-black">
-            <iframe
-              src="${embedUrl}"
-              class="w-full h-full"
-              title="${escapeHtml(activeLecture.title || 'Lecture video')}"
-              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-              allowfullscreen
-              referrerpolicy="strict-origin-when-cross-origin"
-            ></iframe>
+          <div id="watermark-1" class="watermark absolute z-15">${escapeHtml(user.email)} ${user.mobile ? `(${escapeHtml(user.mobile)})` : ''}</div>
+          <div id="watermark-2" class="watermark absolute z-15">${escapeHtml(user.email)} ${user.mobile ? `(${escapeHtml(user.mobile)})` : ''}</div>
+          <div id="watermark-3" class="watermark absolute z-15">${escapeHtml(user.email)} ${user.mobile ? `(${escapeHtml(user.mobile)})` : ''}</div>
+          <div class="custom-player-controls absolute bottom-0 inset-x-0 h-[50px] bg-white border-t border-slate-200 flex items-center px-4 gap-4 z-20">
+            <button id="seek-backward-btn" class="control-btn text-slate-700 hover:text-slate-900" title="Backward 10s">
+              <i class="fas fa-backward"></i>
+            </button>
+            <button id="play-pause-btn" class="control-btn text-slate-700 hover:text-slate-900" title="Play/Pause">
+              <i id="play-pause-icon" class="fas fa-play"></i>
+            </button>
+            <button id="seek-forward-btn" class="control-btn text-slate-700 hover:text-slate-900" title="Forward 10s">
+              <i class="fas fa-forward"></i>
+            </button>
+            <div class="progress-bar-wrapper flex-grow flex items-center">
+              <div class="progress-bar-custom w-full h-1.5 bg-slate-200 rounded-full cursor-pointer relative">
+                <div class="progress-fill h-full w-0 bg-orange-500 rounded-full relative">
+                  <div class="progress-handle absolute right-0 top-1/2 -translate-y-1/2 w-3 h-3 rounded-full bg-white border-2 border-orange-500 shadow-sm translate-x-1/2"></div>
+                </div>
+              </div>
+            </div>
+            <div class="time-display text-xs text-slate-600 min-w-[80px] text-center">0:00 / 0:00</div>
+            <div class="volume-container flex items-center gap-2">
+              <button id="mute-btn" class="control-btn text-slate-700 hover:text-slate-900" title="Mute/Unmute">
+                <i id="mute-icon" class="fas fa-volume-up"></i>
+              </button>
+              <input id="volume-slider" type="range" min="0" max="100" value="100" class="volume-slider w-[70px] h-1 accent-orange-500" title="Volume Slider" />
+            </div>
+            <button id="fullscreen-btn" class="control-btn text-slate-700 hover:text-slate-900" title="Fullscreen">
+              <i class="fas fa-expand"></i>
+            </button>
           </div>
         </div>
       `;
-      return;
+
+      // Initialize YouTube API and instantiate player
+      loadYoutubePlayer(youtubeVideoId);
+
+      // Start floating watermarks
+      setupWatermarks();
+
+      // Connect Chat Socket Room
+      initLectureChat(activeLecture._id);
+
+    } catch (error) {
+      playerPanelEl.innerHTML = `<div class="h-full flex items-center justify-center text-sm text-white/70 px-6 text-center">${escapeHtml(error.message || 'Unable to load signed playback URL')}</div>`;
+    }
+  }
+
+  function loadYoutubePlayer(videoId) {
+    if (window.player && typeof window.player.destroy === 'function') {
+      try { window.player.destroy(); } catch (_) {}
     }
 
-    playerPanelEl.setAttribute('tabindex', '0');
-    renderVideoPanel();
+    const createPlayer = () => {
+      window.player = new YT.Player('player-placeholder', {
+        height: '100%',
+        width: '100%',
+        videoId: videoId,
+        playerVars: {
+          'autoplay': 1,
+          'controls': 0,
+          'disablekb': 1,
+          'fs': 0,
+          'modestbranding': 1,
+          'rel': 0,
+          'showinfo': 0,
+          'iv_load_policy': 3,
+          'autohide': 1,
+          'playsinline': 1,
+          'origin': window.location.origin
+        },
+        events: {
+          'onReady': onPlayerReady,
+          'onStateChange': onPlayerStateChange
+        }
+      });
+    };
+
+    if (window.YT && window.YT.Player) {
+      createPlayer();
+    } else {
+      window.onYouTubeIframeAPIReady = createPlayer;
+      if (!document.querySelector('script[src*="iframe_api"]')) {
+        const tag = document.createElement('script');
+        tag.src = 'https://www.youtube.com/iframe_api';
+        const firstScriptTag = document.getElementsByTagName('script')[0];
+        firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
+      }
+    }
+  }
+
+  function onPlayerReady(event) {
+    setupCustomControls();
+    event.target.playVideo();
+  }
+
+  function onPlayerStateChange(event) {
+    const playPauseIcon = document.getElementById('play-pause-icon');
+    if (!playPauseIcon) return;
+
+    if (event.data === YT.PlayerState.PLAYING) {
+      playPauseIcon.className = 'fas fa-pause';
+    } else {
+      playPauseIcon.className = 'fas fa-play';
+    }
+  }
+
+  function setupCustomControls() {
+    const playPauseBtn = document.getElementById('play-pause-btn');
+    const seekBackwardBtn = document.getElementById('seek-backward-btn');
+    const seekForwardBtn = document.getElementById('seek-forward-btn');
+    const muteBtn = document.getElementById('mute-btn');
+    const muteIcon = document.getElementById('mute-icon');
+    const volumeSlider = document.getElementById('volume-slider');
+    const fullscreenBtn = document.getElementById('fullscreen-btn');
+    const videoContainer = document.querySelector('.video-container');
+    const progressCustom = document.querySelector('.progress-bar-custom');
+    const progressFill = document.querySelector('.progress-fill');
+    const timeDisplay = document.querySelector('.time-display');
+    const overlayProtection = document.querySelector('.video-overlay-protection');
+
+    if (playPauseBtn) {
+      playPauseBtn.addEventListener('click', () => {
+        if (!window.player || typeof window.player.getPlayerState !== 'function') return;
+        const state = window.player.getPlayerState();
+        if (state === YT.PlayerState.PLAYING) {
+          window.player.pauseVideo();
+        } else {
+          window.player.playVideo();
+        }
+      });
+    }
+
+    if (overlayProtection) {
+      overlayProtection.addEventListener('click', () => {
+        if (!window.player || typeof window.player.getPlayerState !== 'function') return;
+        const state = window.player.getPlayerState();
+        if (state === YT.PlayerState.PLAYING) {
+          window.player.pauseVideo();
+        } else {
+          window.player.playVideo();
+        }
+      });
+
+      overlayProtection.addEventListener('dblclick', () => {
+        if (videoContainer) {
+          if (!document.fullscreenElement) {
+            videoContainer.requestFullscreen().catch(err => {
+              console.error('Error entering fullscreen:', err.message);
+            });
+          } else {
+            document.exitFullscreen();
+          }
+        }
+      });
+    }
+
+    if (seekBackwardBtn) {
+      seekBackwardBtn.addEventListener('click', () => {
+        if (!window.player || typeof window.player.getCurrentTime !== 'function') return;
+        const currentTime = window.player.getCurrentTime();
+        window.player.seekTo(Math.max(0, currentTime - 10), true);
+      });
+    }
+
+    if (seekForwardBtn) {
+      seekForwardBtn.addEventListener('click', () => {
+        if (!window.player || typeof window.player.getCurrentTime !== 'function' || typeof window.player.getDuration !== 'function') return;
+        const currentTime = window.player.getCurrentTime();
+        const duration = window.player.getDuration();
+        window.player.seekTo(Math.min(duration, currentTime + 10), true);
+      });
+    }
+
+    if (muteBtn) {
+      muteBtn.addEventListener('click', () => {
+        if (!window.player || typeof window.player.isMuted !== 'function') return;
+        if (window.player.isMuted()) {
+          window.player.unMute();
+          muteIcon.className = 'fas fa-volume-up';
+          volumeSlider.value = window.player.getVolume();
+        } else {
+          window.player.mute();
+          muteIcon.className = 'fas fa-volume-mute';
+          volumeSlider.value = 0;
+        }
+      });
+    }
+
+    if (volumeSlider) {
+      volumeSlider.addEventListener('input', (e) => {
+        if (!window.player || typeof window.player.setVolume !== 'function') return;
+        const volume = e.target.value;
+        window.player.setVolume(volume);
+        if (volume == 0) {
+          window.player.mute();
+          muteIcon.className = 'fas fa-volume-mute';
+        } else {
+          window.player.unMute();
+          muteIcon.className = 'fas fa-volume-up';
+        }
+      });
+    }
+
+    if (fullscreenBtn && videoContainer) {
+      fullscreenBtn.addEventListener('click', () => {
+        if (!document.fullscreenElement) {
+          videoContainer.requestFullscreen().catch(err => {
+            console.error('Error entering fullscreen:', err.message);
+          });
+        } else {
+          document.exitFullscreen();
+        }
+      });
+    }
+
+    // Clean any existing interval
+    if (window.controlsInterval) clearInterval(window.controlsInterval);
+
+    window.controlsInterval = setInterval(() => {
+      if (window.player && typeof window.player.getCurrentTime === 'function' && typeof window.player.getDuration === 'function') {
+        const currentTime = window.player.getCurrentTime();
+        const duration = window.player.getDuration();
+        const isLive = window.CLASS_CONFIG && window.CLASS_CONFIG.status === 'live';
+
+        if (duration > 0) {
+          const percent = (currentTime / duration) * 100;
+          if (progressFill) progressFill.style.width = percent + '%';
+          if (timeDisplay) {
+            timeDisplay.textContent = formatTime(currentTime) + ' / ' + formatTime(duration);
+          }
+        } else if (isLive) {
+          if (timeDisplay) timeDisplay.textContent = 'LIVE';
+          if (progressFill) progressFill.style.width = '100%';
+        } else {
+          if (timeDisplay) timeDisplay.textContent = '0:00 / 0:00';
+          if (progressFill) progressFill.style.width = '0%';
+        }
+      }
+    }, 1000);
+
+    if (progressCustom) {
+      progressCustom.addEventListener('click', (e) => {
+        const duration = window.player.getDuration();
+        if (duration > 0) {
+          const rect = progressCustom.getBoundingClientRect();
+          const pos = (e.clientX - rect.left) / rect.width;
+          window.player.seekTo(pos * duration, true);
+        }
+      });
+    }
+  }
+
+  function formatTime(seconds) {
+    const min = Math.floor(seconds / 60);
+    const sec = Math.floor(seconds % 60);
+    return `${min}:${sec < 10 ? '0' : ''}${sec}`;
+  }
+
+  function setupWatermarks() {
+    if (watermarkInterval) clearInterval(watermarkInterval);
+
+    const videoContainer = document.querySelector('.video-container');
+    if (!videoContainer) return;
+
+    const watermarks = [
+      { el: document.getElementById('watermark-1'), speed: 5000 },
+      { el: document.getElementById('watermark-2'), speed: 7000 },
+      { el: document.getElementById('watermark-3'), speed: 9000 }
+    ];
+
+    const moveWatermark = (wm, speed) => {
+      if (!wm) return;
+      const containerWidth = videoContainer.clientWidth || 800;
+      const containerHeight = videoContainer.clientHeight || 450;
+      const wmWidth = wm.clientWidth || 180;
+      const wmHeight = wm.clientHeight || 20;
+
+      const maxX = Math.max(10, containerWidth - wmWidth - 20);
+      const maxY = Math.max(10, containerHeight - wmHeight - 65); // Clear custom controls
+
+      const randomX = Math.max(10, Math.floor(Math.random() * maxX));
+      const randomY = Math.max(10, Math.floor(Math.random() * maxY));
+
+      wm.style.transition = `all ${speed / 1000 - 0.5}s ease-in-out`;
+      wm.style.left = randomX + 'px';
+      wm.style.top = randomY + 'px';
+    };
+
+    watermarks.forEach(item => {
+      moveWatermark(item.el, item.speed);
+    });
+
+    watermarkInterval = setInterval(() => {
+      watermarks.forEach(item => {
+        moveWatermark(item.el, item.speed);
+      });
+    }, 5000);
+  }
+
+  function initLectureChat(lectureId) {
+    if (socket) {
+      socket.disconnect();
+    }
+
+    const chatMessages = document.getElementById('chat-messages');
+    if (chatMessages) {
+      chatMessages.innerHTML = '';
+    }
+
+    socket = io();
+    socket.emit('joinRoom', { classId: lectureId, user: chatUser });
+
+    socket.on('loadHistory', (messages) => {
+      if (chatMessages) {
+        chatMessages.innerHTML = '';
+        messages.forEach(msg => appendMessage(msg));
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+      }
+    });
+
+    socket.on('message', (msg) => {
+      if (chatMessages) {
+        appendMessage(msg);
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+      }
+    });
+  }
+
+  if (chatForm) {
+    chatForm.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const text = chatInput.value.trim();
+      if (!text || !activeLecture) return;
+
+      socket.emit('chatMessage', {
+        classId: activeLecture._id,
+        message: text
+      });
+
+      chatInput.value = '';
+      chatInput.focus();
+    });
+  }
+
+  function appendMessage(msg) {
+    const chatMessages = document.getElementById('chat-messages');
+    if (!chatMessages) return;
+
+    const bubble = document.createElement('div');
+    bubble.className = 'chat-bubble !text-slate-900';
+    
+    // Check sender
+    if (msg.role === 'admin' || msg.role === 'teacher') {
+      bubble.classList.add('teacher');
+    }
+    if (msg.userId === chatUser.id || msg.userId === chatUser._id) {
+      bubble.classList.add('me');
+    }
+
+    const isTeacher = msg.role === 'admin' || msg.role === 'teacher';
+    const roleBadge = isTeacher ? `<span class="chat-role-badge">Teacher</span>` : '';
+    
+    const formattedTime = new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+    bubble.innerHTML = `
+      <div class="chat-meta">
+        <span class="chat-user">${escapeHtml(msg.username)} ${roleBadge}</span>
+        <span class="chat-time">${formattedTime}</span>
+      </div>
+      <div class="chat-text">${escapeHtml(msg.message)}</div>
+    `;
+
+    chatMessages.appendChild(bubble);
+  }
+
+  function setupAntiPiracy() {
+    // 1. Disable contextmenu
+    document.addEventListener('contextmenu', (e) => {
+      e.preventDefault();
+      return false;
+    });
+
+    // 2. Disable inspector shortcuts
+    document.addEventListener('keydown', (e) => {
+      if (e.keyCode === 123) {
+        e.preventDefault();
+        return false;
+      }
+      if (e.ctrlKey && e.shiftKey && (e.keyCode === 73 || e.keyCode === 74 || e.keyCode === 67)) {
+        e.preventDefault();
+        return false;
+      }
+      if (e.ctrlKey && e.keyCode === 85) {
+        e.preventDefault();
+        return false;
+      }
+      if (e.metaKey && e.altKey && e.keyCode === 73) {
+        e.preventDefault();
+        return false;
+      }
+    });
+
+    // 3. Focus/Visibility Loss Obfuscation
+    const applyObfuscation = () => {
+      const vContainer = document.querySelector('.video-container');
+      const devtoolsOverlay = document.getElementById('devtools-overlay');
+      if (vContainer) vContainer.classList.add('secure-blur');
+      if (devtoolsOverlay) devtoolsOverlay.classList.add('active');
+      if (window.player && typeof window.player.pauseVideo === 'function') {
+        try { window.player.pauseVideo(); } catch (_) {}
+      }
+    };
+
+    const removeObfuscation = () => {
+      const vContainer = document.querySelector('.video-container');
+      const devtoolsOverlay = document.getElementById('devtools-overlay');
+      if (vContainer) vContainer.classList.remove('secure-blur');
+      if (devtoolsOverlay) devtoolsOverlay.classList.remove('active');
+    };
+
+    window.addEventListener('blur', () => {
+      setTimeout(() => {
+        const activeEl = document.activeElement;
+        if (activeEl && (activeEl.tagName === 'IFRAME' || activeEl.id === 'player-placeholder')) {
+          return;
+        }
+        applyObfuscation();
+      }, 200);
+    });
+
+    window.addEventListener('focus', removeObfuscation);
+
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden) applyObfuscation();
+      else removeObfuscation();
+    });
+
+    // 4. DevTools window size check
+    setInterval(() => {
+      if (window.innerWidth < 800) return;
+      const threshold = 250; 
+      const widthDiff = window.outerWidth - window.innerWidth;
+      const heightDiff = window.outerHeight - window.innerHeight;
+      if (widthDiff > threshold || heightDiff > threshold) {
+        const zoomRatio = window.devicePixelRatio || 1;
+        if (zoomRatio < 1.4) {
+          applyObfuscation();
+        }
+      }
+    }, 1500);
+
+    // 5. Block Clipboard screenshots notice
+    window.addEventListener('keyup', (e) => {
+      if (e.key === 'PrintScreen') {
+        navigator.clipboard.writeText('');
+        toast.error('Screenshots are disabled on this portal.');
+      }
+    });
+  }
+
+  const expandedSubjects = new Set();
+  const expandedChapters = new Set();
+
+  function getCompiledLectures() {
+    let lectures = Array.isArray(course?.lectures) ? course.lectures : [];
+    if (lectures.length === 0 && Array.isArray(course?.subjects)) {
+      course.subjects.forEach(s => {
+        if (s && Array.isArray(s.chapters)) {
+          s.chapters.forEach(c => {
+            if (c && Array.isArray(c.lectures)) {
+              lectures = lectures.concat(c.lectures);
+            }
+          });
+        }
+      });
+    }
+    return lectures;
+  }
+
+  function expandActiveLectureAncestors() {
+    if (!activeLecture || !Array.isArray(course?.subjects)) return;
+    course.subjects.forEach((subj, sIndex) => {
+      if (subj && Array.isArray(subj.chapters)) {
+        subj.chapters.forEach((chap, cIndex) => {
+          if (chap && Array.isArray(chap.lectures)) {
+            const hasActive = chap.lectures.some(l => String(l._id) === String(activeLecture._id));
+            if (hasActive) {
+              expandedSubjects.add(String(subj._id || sIndex));
+              expandedChapters.add(String(chap._id || (sIndex + '-' + cIndex)));
+            }
+          }
+        });
+      }
+    });
   }
 
   function renderLectureList() {
-    const lectures = Array.isArray(course?.lectures) ? course.lectures : [];
+    if (!course) return;
+
+    const subjects = Array.isArray(course.subjects) ? course.subjects : [];
+
+    // Check if we have hierarchical subjects
+    if (subjects.length > 0) {
+      let subjectHtml = '';
+      let matchCount = 0;
+
+      subjects.forEach((subject, sIndex) => {
+        const sKey = String(subject._id || sIndex);
+        const chapters = Array.isArray(subject.chapters) ? subject.chapters : [];
+        let chaptersHtml = '';
+        let subjectHasMatches = false;
+
+        chapters.forEach((chapter, cIndex) => {
+          const cKey = String(chapter._id || (sIndex + '-' + cIndex));
+          const lectures = Array.isArray(chapter.lectures) ? chapter.lectures : [];
+
+          // Filter lectures matching search
+          const filteredLectures = lectures.filter(lecture => {
+            if (!lectureSearchQuery) return true;
+            return String(lecture.title || '').toLowerCase().includes(lectureSearchQuery);
+          });
+
+          if (filteredLectures.length === 0) return;
+
+          subjectHasMatches = true;
+          matchCount += filteredLectures.length;
+
+          if (lectureSearchQuery) {
+            expandedChapters.add(cKey);
+          }
+
+          const isChapExpanded = expandedChapters.has(cKey);
+
+          const lecturesHtml = filteredLectures.map(lecture => {
+            const isActive = String(lecture._id) === String(activeLecture?._id);
+            const pdfCount = Array.isArray(lecture.pdfs) ? lecture.pdfs.length : 0;
+
+            let statusBadge = '';
+            if (lecture.status === 'live') {
+              statusBadge = '<span class="text-[9px] font-extrabold px-1.5 py-0.5 rounded bg-red-600 text-white animate-pulse">LIVE</span>';
+            } else if (lecture.status === 'scheduled') {
+              statusBadge = '<span class="text-[9px] font-extrabold px-1.5 py-0.5 rounded bg-amber-600 text-white">UPCOMING</span>';
+            }
+
+            return `
+              <button
+                type="button"
+                data-lecture-id="${lecture._id}"
+                class="pwplayer-lecture ${isActive ? 'active' : ''} w-full text-left rounded-xl border border-white/5 bg-white/5 px-2.5 py-2 hover:bg-white/10 transition flex flex-col gap-0.5"
+              >
+                <div class="flex items-center justify-between w-full">
+                  <span class="text-[10px] text-white/40">Lecture</span>
+                  ${statusBadge}
+                </div>
+                <p class="text-xs font-semibold text-white/95">${escapeHtml(lecture.title || 'Untitled')}</p>
+                <p class="text-[10px] text-white/40">${lecture.videoLink ? 'Video available' : 'No video'} | ${pdfCount} attachments</p>
+              </button>
+            `;
+          }).join('');
+
+          chaptersHtml += `
+            <div class="chapter-group border-l border-white/10 pl-2 ml-1">
+              <button type="button" data-toggle-chapter="${cKey}" class="w-full flex items-center justify-between text-left py-1 text-white/80 hover:text-white transition">
+                <span class="text-[11px] font-semibold tracking-wide uppercase text-slate-300 truncate">${escapeHtml(chapter.name)}</span>
+                <i class="fas ${isChapExpanded ? 'fa-chevron-down' : 'fa-chevron-right'} text-[9px] text-white/50"></i>
+              </button>
+              <div class="chapter-lectures-list space-y-1.5 mt-1 ${isChapExpanded ? '' : 'hidden'}">
+                ${lecturesHtml}
+              </div>
+            </div>
+          `;
+        });
+
+        if (!subjectHasMatches) return;
+
+        if (lectureSearchQuery) {
+          expandedSubjects.add(sKey);
+        }
+
+        const isSubjExpanded = expandedSubjects.has(sKey);
+
+        subjectHtml += `
+          <div class="subject-group bg-white/5 rounded-xl border border-white/10 overflow-hidden">
+            <button type="button" data-toggle-subject="${sKey}" class="w-full flex items-center justify-between text-left px-3.5 py-2.5 bg-white/5 border-b border-white/5 hover:bg-white/10 transition">
+              <span class="text-xs font-bold text-white tracking-wider uppercase truncate">${escapeHtml(subject.name)}</span>
+              <i class="fas ${isSubjExpanded ? 'fa-chevron-down' : 'fa-chevron-right'} text-xs text-white/60"></i>
+            </button>
+            <div class="subject-chapters-list p-2.5 space-y-2 ${isSubjExpanded ? '' : 'hidden'}">
+              ${chaptersHtml}
+            </div>
+          </div>
+        `;
+      });
+
+      if (matchCount === 0) {
+        lectureListEl.innerHTML = '<div class="text-xs text-white/55 border border-white/10 rounded-xl p-3">No lecture found matching search criteria.</div>';
+        return;
+      }
+
+      lectureListEl.innerHTML = subjectHtml;
+      return;
+    }
+
+    // Fallback flat rendering
+    const lectures = Array.isArray(course.lectures) ? course.lectures : [];
     const filtered = lectures.filter((lecture) => {
       if (!lectureSearchQuery) return true;
       const text = String(lecture?.title || '').toLowerCase();
@@ -884,7 +781,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
 
     if (!filtered.length) {
-      lectureListEl.innerHTML = '<div class="text-xs text-white/55 border border-white/10 rounded-xl p-3">No lecture found for your search.</div>';
+      lectureListEl.innerHTML = '<div class="text-xs text-white/55 border border-white/10 rounded-xl p-3">No lecture found.</div>';
       return;
     }
 
@@ -893,15 +790,26 @@ document.addEventListener('DOMContentLoaded', async () => {
         const index = lectures.findIndex((entry) => String(entry?._id) === String(lecture?._id));
         const isActive = String(lecture._id) === String(activeLecture?._id);
         const pdfCount = Array.isArray(lecture?.pdfs) ? lecture.pdfs.length : 0;
+
+        let statusBadge = '';
+        if (lecture.status === 'live') {
+          statusBadge = '<span class="text-[9px] font-extrabold px-1.5 py-0.5 rounded bg-red-600 text-white animate-pulse">LIVE</span>';
+        } else if (lecture.status === 'scheduled') {
+          statusBadge = '<span class="text-[9px] font-extrabold px-1.5 py-0.5 rounded bg-amber-600 text-white">UPCOMING</span>';
+        }
+
         return `
           <button
             type="button"
             data-lecture-id="${lecture._id}"
-            class="pwplayer-lecture ${isActive ? 'active' : ''} w-full text-left rounded-xl border border-white/10 px-3 py-2.5 transition"
+            class="pwplayer-lecture ${isActive ? 'active' : ''} w-full text-left rounded-xl border border-white/10 px-3 py-2.5 transition flex flex-col gap-1"
           >
-            <p class="text-xs text-white/50">Lecture ${index + 1}</p>
-            <p class="text-sm font-medium mt-0.5">${escapeHtml(lecture.title || 'Untitled')}</p>
-            <p class="text-[11px] text-white/50 mt-1">${lecture.videoLink ? 'Video available' : 'No video'} | ${pdfCount} attachments</p>
+            <div class="flex items-center justify-between w-full">
+              <span class="text-xs text-white/50">Lecture ${index + 1}</span>
+              ${statusBadge}
+            </div>
+            <p class="text-sm font-medium">${escapeHtml(lecture.title || 'Untitled')}</p>
+            <p class="text-[11px] text-white/50">${lecture.videoLink ? 'Video available' : 'No video'} | ${pdfCount} attachments</p>
           </button>
         `;
       })
@@ -909,12 +817,13 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   function setActiveLectureById(lectureId) {
-    const lectures = Array.isArray(course?.lectures) ? course.lectures : [];
+    const lectures = getCompiledLectures();
     activeLecture = lectures.find((lecture) => String(lecture._id) === String(lectureId)) || lectures[0] || null;
+    expandActiveLectureAncestors();
   }
 
   function renderAll() {
-    const lectures = Array.isArray(course?.lectures) ? course.lectures : [];
+    const lectures = getCompiledLectures();
     if (lessonStatsEl) {
       lessonStatsEl.textContent = `${lectures.length} Lessons`;
     }
@@ -927,6 +836,32 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   lectureListEl.addEventListener('click', (event) => {
+    // Check if toggle subject clicked
+    const subjToggle = event.target.closest('[data-toggle-subject]');
+    if (subjToggle) {
+      const sKey = subjToggle.dataset.toggleSubject;
+      if (expandedSubjects.has(sKey)) {
+        expandedSubjects.delete(sKey);
+      } else {
+        expandedSubjects.add(sKey);
+      }
+      renderLectureList();
+      return;
+    }
+
+    // Check if toggle chapter clicked
+    const chapToggle = event.target.closest('[data-toggle-chapter]');
+    if (chapToggle) {
+      const cKey = chapToggle.dataset.toggleChapter;
+      if (expandedChapters.has(cKey)) {
+        expandedChapters.delete(cKey);
+      } else {
+        expandedChapters.add(cKey);
+      }
+      renderLectureList();
+      return;
+    }
+
     const button = event.target.closest('[data-lecture-id]');
     if (!button) return;
     setActiveLectureById(button.dataset.lectureId);
@@ -952,39 +887,28 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   if (prevLectureBtn) {
     prevLectureBtn.addEventListener('click', () => {
-      const lectures = Array.isArray(course?.lectures) ? course.lectures : [];
+      const lectures = getCompiledLectures();
       const index = getActiveLectureIndex();
       if (index <= 0) return;
       activeLecture = lectures[index - 1] || activeLecture;
+      expandActiveLectureAncestors();
       renderAll();
     });
   }
 
   if (nextLectureBtn) {
     nextLectureBtn.addEventListener('click', () => {
-      const lectures = Array.isArray(course?.lectures) ? course.lectures : [];
+      const lectures = getCompiledLectures();
       const index = getActiveLectureIndex();
       if (index === -1 || index >= lectures.length - 1) return;
       activeLecture = lectures[index + 1] || activeLecture;
+      expandActiveLectureAncestors();
       renderAll();
     });
   }
 
   backBtn.addEventListener('click', () => {
     window.location.href = `/student/course/${courseId}`;
-  });
-
-  // Basic deterrents; client-side apps cannot guarantee URL secrecy in-browser.
-  document.addEventListener('contextmenu', (event) => {
-    if (playerRootEl.contains(event.target)) {
-      event.preventDefault();
-    }
-  });
-
-  document.addEventListener('dragstart', (event) => {
-    if (playerRootEl.contains(event.target)) {
-      event.preventDefault();
-    }
   });
 
   try {
@@ -1005,9 +929,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 function sanitizeUrl(link) {
   const value = String(link || '').trim();
   if (!value) return '#';
-
   if (value.startsWith('/')) return value;
   if (/^https?:\/\//i.test(value)) return value;
-
   return '#';
 }

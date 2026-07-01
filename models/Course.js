@@ -28,8 +28,47 @@ const lectureSchema = new mongoose.Schema(
       default: '',
       trim: true,
     },
+    status: {
+      type: String,
+      enum: ['scheduled', 'live', 'ended'],
+      default: 'ended',
+    },
+    scheduledAt: {
+      type: Date,
+      default: Date.now,
+    },
     pdfs: {
       type: [lecturePdfSchema],
+      default: [],
+    },
+  },
+  { _id: true }
+);
+
+const chapterSchema = new mongoose.Schema(
+  {
+    name: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+    lectures: {
+      type: [lectureSchema],
+      default: [],
+    },
+  },
+  { _id: true }
+);
+
+const subjectSchema = new mongoose.Schema(
+  {
+    name: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+    chapters: {
+      type: [chapterSchema],
       default: [],
     },
   },
@@ -72,6 +111,10 @@ const courseSchema = new mongoose.Schema(
     isPublished: {
       type: Boolean,
       default: false,
+    },
+    subjects: {
+      type: [subjectSchema],
+      default: [],
     },
     lectures: {
       type: [lectureSchema],

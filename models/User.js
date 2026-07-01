@@ -72,6 +72,10 @@ const userSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Course',
   }],
+  batches: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Batch',
+  }],
 }, { timestamps: true });
 
 userSchema.plugin(passportLocalMongoose, {

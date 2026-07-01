@@ -149,6 +149,8 @@ const sanitizeLecturePdfs = (pdfs) => {
 const sanitizeLecture = (lecture) => ({
   title: String(lecture?.title || '').trim(),
   videoLink: String(lecture?.videoLink || '').trim(),
+  status: String(lecture?.status || 'ended').trim(),
+  scheduledAt: lecture?.scheduledAt ? new Date(lecture.scheduledAt) : new Date(),
   pdfs: sanitizeLecturePdfs(lecture?.pdfs),
 });
 
@@ -156,8 +158,41 @@ const mapLectureForStudent = (lecture, index) => ({
   _id: lecture?._id,
   title: String(lecture?.title || '').trim() || `Lecture ${index + 1}`,
   videoLink: String(lecture?.videoLink || '').trim(),
+  status: String(lecture?.status || 'ended').trim(),
+  scheduledAt: lecture?.scheduledAt,
   pdfs: sanitizeLecturePdfs(lecture?.pdfs),
 });
+
+const sanitizeChapter = (chapter) => ({
+  name: String(chapter?.name || '').trim(),
+  lectures: Array.isArray(chapter?.lectures)
+    ? chapter.lectures.map(sanitizeLecture).filter((l) => l.title)
+    : [],
+});
+
+const sanitizeSubject = (subject) => ({
+  name: String(subject?.name || '').trim(),
+  chapters: Array.isArray(subject?.chapters)
+    ? subject.chapters.map(sanitizeChapter).filter((c) => c.name)
+    : [],
+});
+
+const mapChapterForStudent = (chapter) => ({
+  _id: chapter?._id,
+  name: String(chapter?.name || '').trim(),
+  lectures: Array.isArray(chapter?.lectures)
+    ? chapter.lectures.map((l, index) => mapLectureForStudent(l, index))
+    : [],
+});
+
+const mapSubjectForStudent = (subject) => ({
+  _id: subject?._id,
+  name: String(subject?.name || '').trim(),
+  chapters: Array.isArray(subject?.chapters)
+    ? subject.chapters.map(mapChapterForStudent)
+    : [],
+});
+
 
 // ==================== ADMIN ROUTES ====================
 router.get('/admin/all', auth, adminOnly, async (req, res) => {
@@ -294,6 +329,39 @@ router.put('/:id/lectures', auth, adminOnly, async (req, res) => {
   }
 });
 
+router.put('/:id/subjects', auth, adminOnly, async (req, res) => {
+  try {
+    const { subjects } = req.body;
+    if (!Array.isArray(subjects)) {
+      return res.status(400).json({ message: 'subjects must be an array' });
+    }
+
+    const sanitized = subjects.map(sanitizeSubject).filter((s) => s.name);
+
+    const course = await Course.findById(req.params.id);
+    if (!course) return res.status(404).json({ message: 'Course not found' });
+
+    course.subjects = sanitized;
+
+    // Maintain backwards compatibility by compiling a flat list of lectures
+    const flatLectures = [];
+    sanitized.forEach(subj => {
+      subj.chapters.forEach(chap => {
+        chap.lectures.forEach(lec => {
+          flatLectures.push(lec);
+        });
+      });
+    });
+    course.lectures = flatLectures;
+
+    await course.save();
+    res.json(course);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+
 router.delete('/:id/lectures/:lectureId', auth, adminOnly, async (req, res) => {
   try {
     const course = await Course.findById(req.params.id);
@@ -307,19 +375,21 @@ router.delete('/:id/lectures/:lectureId', auth, adminOnly, async (req, res) => {
   }
 });
 
-// ==================== STUDENT ROUTES ====================
 router.get('/published', auth, async (req, res) => {
   try {
     const minimal = req.query.minimal === 'true' || req.query.fields === 'basic';
 
     if (minimal) {
       const courses = await Course.find({ isPublished: true })
-        .select('_id image name description price madeFor tags lectures')
+        .select('_id image name description price madeFor tags lectures subjects')
         .sort({ createdAt: -1 })
         .lean();
       return res.json(
         courses.map((course) => ({
           ...course,
+          subjects: Array.isArray(course.subjects)
+            ? course.subjects.map(mapSubjectForStudent)
+            : [],
           lectures: Array.isArray(course.lectures)
             ? course.lectures.map((lecture, index) => mapLectureForStudent(lecture, index))
             : [],
@@ -335,6 +405,9 @@ router.get('/published', auth, async (req, res) => {
     res.json(
       courses.map((course) => ({
         ...course,
+        subjects: Array.isArray(course.subjects)
+          ? course.subjects.map(mapSubjectForStudent)
+          : [],
         lectures: Array.isArray(course.lectures)
           ? course.lectures.map((lecture, index) => mapLectureForStudent(lecture, index))
           : [],
@@ -359,6 +432,9 @@ router.get('/published/:id', auth, async (req, res) => {
 
     res.json({
       ...course,
+      subjects: Array.isArray(course.subjects)
+        ? course.subjects.map(mapSubjectForStudent)
+        : [],
       lectures: Array.isArray(course.lectures)
         ? course.lectures.map((lecture, index) => mapLectureForStudent(lecture, index))
         : [],
@@ -369,7 +445,7 @@ router.get('/published/:id', auth, async (req, res) => {
   }
 });
 
-// Generate a short-lived signed playback URL for a lecture video.
+// Generate a obfuscated YouTube playback token and status for a lecture video.
 router.get('/published/:id/lectures/:lectureId/playback', auth, async (req, res) => {
   try {
     const course = await Course.findOne({ _id: req.params.id, isPublished: true }).lean();
@@ -380,33 +456,43 @@ router.get('/published/:id/lectures/:lectureId/playback', auth, async (req, res)
       return res.status(403).json({ message: 'Purchase this course to open lecture content' });
     }
 
-    const lectures = Array.isArray(course.lectures) ? course.lectures : [];
+    let lectures = Array.isArray(course.lectures) ? course.lectures : [];
+    if (lectures.length === 0 && Array.isArray(course.subjects)) {
+      course.subjects.forEach(s => {
+        if (s && Array.isArray(s.chapters)) {
+          s.chapters.forEach(c => {
+            if (c && Array.isArray(c.lectures)) {
+              lectures = lectures.concat(c.lectures);
+            }
+          });
+        }
+      });
+    }
+
     const lecture = lectures.find((item) => String(item._id) === String(req.params.lectureId));
     if (!lecture) {
       return res.status(404).json({ message: 'Lecture not found' });
     }
 
-    const { sourceUrl, trustedSource } = await resolvePlaybackSource(lecture.videoLink);
-
-    if (!trustedSource && !isAllowedVideoHost(sourceUrl)) {
-      return res.status(400).json({
-        message: 'Video host is not allowed for signed playback. Configure VIDEO_ALLOWED_HOSTS if needed.',
-      });
+    // Extract YouTube Video ID from videoLink
+    let youtubeId = '';
+    const rawLink = String(lecture.videoLink || '').trim();
+    if (/^[a-zA-Z0-9_-]{11}$/.test(rawLink)) {
+      youtubeId = rawLink;
+    } else {
+      const urlRegExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=|live\/|shorts\/)([^#\&\?]*).*/;
+      const match = rawLink.match(urlRegExp);
+      youtubeId = (match && match[2].length === 11) ? match[2] : '';
+    }
+    if (!youtubeId) {
+      youtubeId = rawLink;
     }
 
-    const now = Math.floor(Date.now() / 1000);
-    const token = signPlaybackPayload({
-      uid: String(req.user._id),
-      cid: String(course._id),
-      lid: String(lecture._id),
-      src: sourceUrl,
-      trusted: trustedSource ? 1 : 0,
-      exp: now + PLAYBACK_TOKEN_TTL_SECONDS,
-    });
+    const token = Buffer.from(youtubeId).toString('base64');
 
     res.json({
-      playbackUrl: `/api/courses/stream?token=${encodeURIComponent(token)}`,
-      expiresIn: PLAYBACK_TOKEN_TTL_SECONDS,
+      token,
+      status: lecture.status || 'ended',
     });
   } catch (error) {
     res.status(500).json({ message: error.message });

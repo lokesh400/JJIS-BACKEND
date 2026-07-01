@@ -86,6 +86,28 @@
         border-radius: 1.15rem;
       }
     }
+    .schedule-tab.active {
+      border-color: #f97316;
+      color: #ea580c;
+    }
+    .pulse-live {
+      box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7);
+      animation: pulse 1.6s infinite;
+    }
+    @keyframes pulse {
+      0% {
+        transform: scale(0.95);
+        box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7);
+      }
+      70% {
+        transform: scale(1);
+        box-shadow: 0 0 0 6px rgba(239, 68, 68, 0);
+      }
+      100% {
+        transform: scale(0.95);
+        box-shadow: 0 0 0 0 rgba(239, 68, 68, 0);
+      }
+    }
   </style>
 
   <div class="md:ml-60 pt-14 page-body dash-shell dash-main">
@@ -141,6 +163,51 @@
         </a>
       </section>
 
+      <!-- Cohort Selector & Interactive Subject-Wise Schedule -->
+      <section class="bg-white rounded-2xl shadow-sm border border-slate-100 p-5 md:p-6 mt-6 fade-up-1">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 pb-4">
+          <div>
+            <h2 class="dash-title text-lg font-bold text-slate-800 flex items-center gap-2">
+              <span class="text-xl">🎓</span> Selected Cohort
+            </h2>
+            <p class="text-xs text-slate-500 mt-0.5">Toggle between your purchased courses to view live schedules and subject-wise lectures.</p>
+          </div>
+          <div>
+            <label for="cohort-selector" class="sr-only">Choose Course Cohort</label>
+            <select id="cohort-selector" class="w-full sm:w-auto px-4 py-2.5 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 bg-white shadow-sm focus:outline-none focus:border-slate-300">
+              <option value="">Loading your cohorts...</option>
+            </select>
+          </div>
+        </div>
+
+        <div id="cohort-empty-state" class="hidden py-12 text-center">
+          <div class="text-4xl mb-3">📚</div>
+          <p class="text-sm font-semibold text-slate-600">No active cohorts found</p>
+          <p class="text-xs text-slate-400 mt-1 max-w-sm mx-auto">You have not purchased any courses yet. Unlock a course to view scheduled lectures and interactive feeds.</p>
+          <a href="/student/purchase-courses" class="inline-block mt-4 px-4 py-2 bg-slate-800 text-white rounded-xl text-xs font-bold hover:bg-slate-900 transition">Browse Courses</a>
+        </div>
+
+        <div id="cohort-schedule-content" class="hidden mt-6 space-y-6">
+          <!-- Status Tabs -->
+          <div class="flex items-center gap-1.5 border-b border-slate-100 pb-px">
+            <button id="tab-ongoing" class="schedule-tab active px-4 py-2 border-b-2 border-orange-500 text-xs font-bold text-slate-800 transition">
+              Ongoing / Live <span id="count-ongoing" class="ml-1 bg-red-100 text-red-600 px-1.5 py-0.5 rounded-full text-[10px] hidden">0</span>
+            </button>
+            <button id="tab-upcoming" class="schedule-tab px-4 py-2 border-b-2 border-transparent text-xs font-bold text-slate-500 hover:text-slate-800 transition">
+              Upcoming <span id="count-upcoming" class="ml-1 bg-blue-100 text-blue-600 px-1.5 py-0.5 rounded-full text-[10px] hidden">0</span>
+            </button>
+            <button id="tab-completed" class="schedule-tab px-4 py-2 border-b-2 border-transparent text-xs font-bold text-slate-500 hover:text-slate-800 transition">
+              Completed <span id="count-completed" class="ml-1 bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded-full text-[10px] hidden">0</span>
+            </button>
+          </div>
+
+          <!-- Schedule Lists Grouped Subject-wise -->
+          <div id="schedule-tab-content" class="min-h-[150px] space-y-4">
+            <!-- Dynamic Content Renders Here -->
+          </div>
+        </div>
+      </section>
+
       <section class="grid grid-cols-1 xl:grid-cols-[minmax(0,1.2fr),minmax(0,0.8fr)] gap-4 mt-6 fade-up-2 xl:flex-1">
         <article class="dash-card p-5 md:p-6 h-full">
           <p class="text-xs uppercase tracking-[0.18em] text-slate-500 font-semibold">Today's Focus</p>
@@ -190,12 +257,245 @@
   <script src="/js/auth-guard.js"></script>
   <script src="/js/sidebar.js"></script>
   <script>
-    document.addEventListener('DOMContentLoaded', () => {
+    document.addEventListener('DOMContentLoaded', async () => {
       requireAuth('student');
       const user = getUser();
       if (user) {
         const el = document.getElementById('welcome-title');
         if (el) el.textContent = 'Welcome back, ' + user.name.split(' ')[0] + '!';
+      }
+
+      // Cohort Schedule System
+      const cohortSelector = document.getElementById('cohort-selector');
+      const cohortEmptyState = document.getElementById('cohort-empty-state');
+      const cohortScheduleContent = document.getElementById('cohort-schedule-content');
+      const scheduleTabContent = document.getElementById('schedule-tab-content');
+
+      const tabOngoing = document.getElementById('tab-ongoing');
+      const tabUpcoming = document.getElementById('tab-upcoming');
+      const tabCompleted = document.getElementById('tab-completed');
+
+      const countOngoing = document.getElementById('count-ongoing');
+      const countUpcoming = document.getElementById('count-upcoming');
+      const countCompleted = document.getElementById('count-completed');
+
+      let currentTab = 'ongoing';
+      let activeCourse = null;
+
+      // Tab switcher
+      const tabs = [
+        { el: tabOngoing, name: 'ongoing' },
+        { el: tabUpcoming, name: 'upcoming' },
+        { el: tabCompleted, name: 'completed' }
+      ];
+
+      tabs.forEach(tab => {
+        if (tab.el) {
+          tab.el.addEventListener('click', () => {
+            tabs.forEach(t => {
+              t.el.classList.remove('active', 'border-orange-500', 'text-slate-800');
+              t.el.classList.add('border-transparent', 'text-slate-500');
+            });
+            tab.el.classList.remove('border-transparent', 'text-slate-500');
+            tab.el.classList.add('active', 'border-orange-500', 'text-slate-800');
+            currentTab = tab.name;
+            renderSchedule();
+          });
+        }
+      });
+
+      // Load student purchased cohorts
+      try {
+        const purchases = await API.get('/purchase/my?itemType=Course');
+        if (!purchases || purchases.length === 0) {
+          cohortSelector.innerHTML = '<option value="">No courses purchased</option>';
+          cohortEmptyState.classList.remove('hidden');
+          cohortScheduleContent.classList.add('hidden');
+          return;
+        }
+
+        // Populating selector
+        cohortSelector.innerHTML = purchases.map((p, idx) => {
+          const course = p.course || p.itemId;
+          if (!course) return '';
+          return `<option value="${course._id}" ${idx === 0 ? 'selected' : ''}>${escapeHtml(course.name)}</option>`;
+        }).join('');
+
+        const firstCourse = purchases[0].course || purchases[0].itemId;
+        if (firstCourse) {
+          await loadCohortDetails(firstCourse._id);
+        }
+
+        cohortSelector.addEventListener('change', async (e) => {
+          const courseId = e.target.value;
+          if (courseId) {
+            await loadCohortDetails(courseId);
+          }
+        });
+      } catch (err) {
+        console.error(err);
+        cohortSelector.innerHTML = '<option value="">Error loading courses</option>';
+      }
+
+      async function loadCohortDetails(courseId) {
+        try {
+          scheduleTabContent.innerHTML = '<div class="text-center py-8 text-slate-400 text-xs">Loading schedules...</div>';
+          const course = await API.get(`/courses/published/${courseId}`);
+          activeCourse = course;
+          renderSchedule();
+        } catch (err) {
+          scheduleTabContent.innerHTML = `<div class="text-center py-8 text-red-500 text-xs">Error loading schedule: ${escapeHtml(err.message)}</div>`;
+        }
+      }
+
+      function renderSchedule() {
+        if (!activeCourse) return;
+
+        cohortEmptyState.classList.add('hidden');
+        cohortScheduleContent.classList.remove('hidden');
+
+        // Compile lectures list with subject details from activeCourse
+        const ongoingList = [];
+        const upcomingList = [];
+        const completedList = [];
+
+        if (Array.isArray(activeCourse.subjects)) {
+          activeCourse.subjects.forEach(subject => {
+            if (!subject || !Array.isArray(subject.chapters)) return;
+            subject.chapters.forEach(chapter => {
+              if (!chapter || !Array.isArray(chapter.lectures)) return;
+              chapter.lectures.forEach(lecture => {
+                const lecData = {
+                  ...lecture,
+                  subjectName: subject.name,
+                  chapterName: chapter.name
+                };
+                if (lecture.status === 'live') {
+                  ongoingList.push(lecData);
+                } else if (lecture.status === 'scheduled') {
+                  upcomingList.push(lecData);
+                } else {
+                  completedList.push(lecData);
+                }
+              });
+            });
+          });
+        }
+
+        // Update counts
+        updateCountBadge(countOngoing, ongoingList.length);
+        updateCountBadge(countUpcoming, upcomingList.length);
+        updateCountBadge(countCompleted, completedList.length);
+
+        // Select the active list based on tab
+        let selectedList = [];
+        if (currentTab === 'ongoing') selectedList = ongoingList;
+        else if (currentTab === 'upcoming') selectedList = upcomingList;
+        else selectedList = completedList;
+
+        if (selectedList.length === 0) {
+          let emptyMsg = 'No ongoing / live classes at the moment.';
+          if (currentTab === 'upcoming') emptyMsg = 'No upcoming classes scheduled.';
+          if (currentTab === 'completed') emptyMsg = 'No completed lectures found.';
+
+          scheduleTabContent.innerHTML = `
+            <div class="text-center py-10 text-slate-400 text-xs bg-slate-50/50 rounded-xl border border-slate-100">
+              <p>${emptyMsg}</p>
+            </div>
+          `;
+          return;
+        }
+
+        // Group selectedList subject-wise
+        const groups = {};
+        selectedList.forEach(item => {
+          if (!groups[item.subjectName]) groups[item.subjectName] = [];
+          groups[item.subjectName].push(item);
+        });
+
+        // Render groups
+        scheduleTabContent.innerHTML = Object.keys(groups).map(subject => {
+          const items = groups[subject];
+          const cardsHtml = items.map(lecture => {
+            let actionHtml = '';
+            if (lecture.status === 'live') {
+              actionHtml = `
+                <a href="/student/course/${activeCourse._id}/player?lectureId=${lecture._id}" class="px-3.5 py-1.5 rounded-lg bg-red-500 text-white text-xs font-bold hover:bg-red-600 transition flex items-center gap-1.5">
+                  <span class="w-2 h-2 rounded-full bg-white pulse-live"></span> Join Class
+                </a>
+              `;
+            } else if (lecture.status === 'scheduled') {
+              const formattedDate = formatScheduledDate(lecture.scheduledAt);
+              actionHtml = `
+                <div class="px-3 py-1.5 bg-blue-50 text-blue-700 text-xs font-bold rounded-lg border border-blue-100 flex items-center gap-1">
+                  📅 ${formattedDate}
+                </div>
+              `;
+            } else {
+              actionHtml = `
+                <a href="/student/course/${activeCourse._id}/player?lectureId=${lecture._id}" class="px-3 py-1.5 rounded-lg border border-slate-300 text-slate-700 text-xs font-semibold hover:bg-slate-50 transition">
+                  Watch Recording
+                </a>
+              `;
+            }
+
+            return `
+              <div class="bg-white border border-slate-100 rounded-lg p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs">
+                <div>
+                  <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400">${escapeHtml(lecture.chapterName)}</p>
+                  <h5 class="text-xs font-bold text-slate-800 mt-1">${escapeHtml(lecture.title)}</h5>
+                </div>
+                <div class="flex items-center gap-2 self-start sm:self-auto mt-2 sm:mt-0">
+                  ${actionHtml}
+                </div>
+              </div>
+            `;
+          }).join('');
+
+          return `
+            <div class="subject-block border border-slate-100 rounded-xl p-4 bg-slate-50/50">
+              <h4 class="text-xs font-extrabold uppercase tracking-wider text-slate-400 mb-3 flex items-center gap-1.5">
+                <span class="w-1.5 h-3 bg-orange-500 rounded-full"></span> ${escapeHtml(subject)}
+              </h4>
+              <div class="space-y-2">
+                ${cardsHtml}
+              </div>
+            </div>
+          `;
+        }).join('<div class="h-4"></div>');
+      }
+
+      function updateCountBadge(badgeEl, count) {
+        if (!badgeEl) return;
+        if (count > 0) {
+          badgeEl.textContent = count;
+          badgeEl.classList.remove('hidden');
+        } else {
+          badgeEl.classList.add('hidden');
+        }
+      }
+
+      function formatScheduledDate(dateString) {
+        if (!dateString) return 'TBD';
+        const d = new Date(dateString);
+        if (isNaN(d.getTime())) return 'TBD';
+        return d.toLocaleDateString('en-IN', {
+          day: '2-digit',
+          month: 'short',
+          hour: '2-digit',
+          minute: '2-digit',
+          hour12: true
+        });
+      }
+
+      function escapeHtml(str) {
+        if (!str) return '';
+        return str
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;')
+          .replace(/'/g, '&#039;');
       }
     });
   </script>

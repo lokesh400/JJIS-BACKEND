@@ -1,4 +1,8 @@
 <%- include('../partials/head', { title: 'Course Player' }) %>
+<!-- Load FontAwesome CDN for Custom Player Icons -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<!-- Load Classroom Page Styling -->
+<link rel="stylesheet" href="/css/classroom.css">
 <body class="min-h-screen bg-[#0b1220] text-white">
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Sora:wght@600;700;800&display=swap');
@@ -61,10 +65,54 @@
       background: rgba(15, 23, 42, 0.72);
     }
 
+    .video-container {
+      position: relative !important;
+      width: 100% !important;
+      padding-top: 56.25% !important; /* 16:9 Aspect Ratio */
+      background-color: #000 !important;
+      overflow: hidden !important;
+      border: none !important;
+    }
+
     @media (max-width: 768px) {
       .pwplayer-panel {
         border-radius: 1rem;
       }
+    }
+    #player-placeholder, #player-placeholder iframe {
+      position: absolute !important;
+      top: 0 !important;
+      left: 0 !important;
+      width: 100% !important;
+      height: 100% !important;
+      border: none !important;
+      pointer-events: none !important;
+      transform: none !important;
+    }
+    .progress-bar-custom {
+      overflow: visible !important;
+    }
+    .progress-handle {
+      pointer-events: none;
+      box-shadow: 0 0 5px rgba(249, 115, 22, 0.8);
+      transition: transform 0.1s ease;
+    }
+    .progress-bar-custom:hover .progress-handle {
+      transform: translate(50%, -50%) scale(1.2);
+    }
+    .custom-player-controls {
+      background: #ffffff !important;
+      border-top: 1px solid #e2e8f0 !important;
+    }
+    .custom-player-controls .control-btn {
+      color: #334155 !important;
+    }
+    .custom-player-controls .control-btn:hover {
+      color: #0f172a !important;
+      background-color: rgba(0, 0, 0, 0.05) !important;
+    }
+    .custom-player-controls .time-display {
+      color: #475569 !important;
     }
   </style>
   <div id="loading" class="min-h-screen flex items-center justify-center"><div class="spinner"></div></div>
@@ -75,7 +123,7 @@
         <div class="min-w-0">
           <button id="back-btn" class="text-xs md:text-sm text-cyan-300 hover:text-cyan-200 mb-1">&larr; Back to Course</button>
           <h1 id="player-course-name" class="pwplayer-title text-base md:text-xl font-semibold truncate">Course</h1>
-          <p id="player-lecture-title" class="text-xs md:text-sm text-white/65 truncate">Lecture</p>
+          <p id="player-lecture-title" class="text-xs md:text-sm text-white/65 truncate font-bold text-orange-400">Lecture</p>
         </div>
 
         <div class="flex flex-wrap items-center gap-2 md:gap-2.5">
@@ -94,26 +142,127 @@
     </header>
 
     <main class="flex-1 min-h-0 px-3 py-3 md:px-5 md:py-5">
-      <div class="max-w-[1700px] mx-auto grid grid-cols-1 xl:grid-cols-[minmax(0,1fr),360px] gap-4 md:gap-5 min-h-full">
+      <div class="max-w-[1700px] mx-auto grid grid-cols-1 xl:grid-cols-[minmax(0,1fr),380px] gap-4 md:gap-5 min-h-full">
         <section class="min-h-[58vh] xl:min-h-0 relative">
           <div class="absolute inset-0 pointer-events-none opacity-40">
             <div class="absolute -top-20 left-8 w-72 h-72 rounded-full bg-cyan-400/20 blur-3xl"></div>
             <div class="absolute -bottom-10 right-8 w-72 h-72 rounded-full bg-orange-500/20 blur-3xl"></div>
           </div>
-          <div id="player-panel" class="pwplayer-panel h-full overflow-hidden relative"></div>
+          
+          <div id="player-panel" class="pwplayer-panel overflow-hidden relative">
+            <div class="video-container w-full relative">
+              <!-- YouTube Iframe API targets this div -->
+              <div id="player-placeholder" class="absolute inset-0 w-full h-full"></div>
+              
+              <!-- Click Blocker prevents direct contextmenu / player manipulation -->
+              <div class="video-overlay-protection absolute inset-x-0 top-0 bottom-[50px] z-10"></div>
+              
+              <!-- DevTools / Focus security blackout container -->
+              <div id="devtools-overlay" class="dev-security-overlay absolute inset-0 z-[100] flex flex-col items-center justify-center bg-black/95 text-white opacity-0 pointer-events-none transition-opacity duration-300 text-center">
+                <i class="fas fa-lock text-3xl mb-3 text-red-500"></i>
+                <h2 class="text-lg font-bold text-red-500 mb-1">Security Blackout Active</h2>
+                <p class="text-xs text-white/70 max-w-xs px-4">DevTools inspection or background window shifting detected. Close tools and return focus to resume play.</p>
+              </div>
+
+              <!-- Dynamic Floating Anti-Piracy Watermarks -->
+              <% 
+                const watermarkText = `${user.email} ${user.mobile ? `(${user.mobile})` : ''}`;
+              %>
+              <div id="watermark-1" class="watermark absolute z-15"><%= watermarkText %></div>
+              <div id="watermark-2" class="watermark absolute z-15"><%= watermarkText %></div>
+              <div id="watermark-3" class="watermark absolute z-15"><%= watermarkText %></div>
+
+              <!-- Custom Video Controls Overlay -->
+              <div class="custom-player-controls absolute bottom-0 inset-x-0 h-[50px] bg-white border-t border-slate-200 flex items-center px-4 gap-4 z-20">
+                <!-- Seek Backward -->
+                <button id="seek-backward-btn" class="control-btn text-slate-700 hover:text-slate-900" title="Backward 10s">
+                  <i class="fas fa-backward"></i>
+                </button>
+
+                <!-- Play / Pause -->
+                <button id="play-pause-btn" class="control-btn text-slate-700 hover:text-slate-900" title="Play/Pause">
+                  <i id="play-pause-icon" class="fas fa-play"></i>
+                </button>
+
+                <!-- Seek Forward -->
+                <button id="seek-forward-btn" class="control-btn text-slate-700 hover:text-slate-900" title="Forward 10s">
+                  <i class="fas fa-forward"></i>
+                </button>
+
+                <!-- Progress bar -->
+                <div class="progress-bar-wrapper flex-grow flex items-center">
+                  <div class="progress-bar-custom w-full h-1.5 bg-slate-200 rounded-full cursor-pointer relative">
+                    <div class="progress-fill h-full w-0 bg-orange-500 rounded-full relative">
+                      <div class="progress-handle absolute right-0 top-1/2 -translate-y-1/2 w-3 h-3 rounded-full bg-white border-2 border-orange-500 shadow-sm translate-x-1/2"></div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Time display -->
+                <div class="time-display text-xs text-slate-600 min-w-[80px] text-center">0:00 / 0:00</div>
+
+                <!-- Mute / Volume -->
+                <div class="volume-container flex items-center gap-2">
+                  <button id="mute-btn" class="control-btn text-slate-700 hover:text-slate-900" title="Mute/Unmute">
+                    <i id="mute-icon" class="fas fa-volume-up"></i>
+                  </button>
+                  <input id="volume-slider" type="range" min="0" max="100" value="100" class="volume-slider w-[70px] h-1 accent-orange-500" title="Volume Slider" />
+                </div>
+
+                <!-- Full Screen Toggle -->
+                <button id="fullscreen-btn" class="control-btn text-slate-700 hover:text-slate-900" title="Fullscreen">
+                  <i class="fas fa-expand"></i>
+                </button>
+              </div>
+            </div>
+          </div>
         </section>
 
-        <aside class="pwplayer-glass rounded-2xl p-3 md:p-4 overflow-y-auto min-h-[300px] xl:min-h-0">
-          <p class="text-xs uppercase tracking-[0.18em] text-white/50 mb-2">Lecture Roadmap</p>
-          <label for="player-lecture-search" class="sr-only">Search lectures</label>
-          <input id="player-lecture-search" type="search" placeholder="Search lecture..." class="pwplayer-search w-full rounded-xl px-3 py-2 text-sm text-white placeholder:text-slate-400" />
-          <div id="player-lecture-list" class="space-y-2.5 mt-3"></div>
+        <aside class="pwplayer-glass rounded-2xl p-3 md:p-4 flex flex-col min-h-[400px] xl:min-h-0">
+          <div class="flex items-center gap-1.5 rounded-xl border border-white/15 bg-white/5 p-1 mb-3">
+            <button id="aside-tab-roadmap" class="pwplayer-tab active flex-1 text-center py-1.5 rounded-lg text-xs font-semibold border border-transparent transition">Roadmap</button>
+            <button id="aside-tab-chat" class="pwplayer-tab flex-1 text-center py-1.5 rounded-lg text-xs font-semibold border border-transparent text-white/80 transition">Live Chat</button>
+          </div>
+          
+          <!-- Roadmap Tab Panel -->
+          <div id="roadmap-panel" class="flex-grow flex flex-col min-h-0">
+            <p class="text-xs uppercase tracking-[0.18em] text-white/50 mb-2">Lecture Roadmap</p>
+            <label for="player-lecture-search" class="sr-only">Search lectures</label>
+            <input id="player-lecture-search" type="search" placeholder="Search lecture..." class="pwplayer-search w-full rounded-xl px-3 py-2 text-sm text-white placeholder:text-slate-400" />
+            <div id="player-lecture-list" class="space-y-2.5 mt-3 overflow-y-auto flex-1"></div>
+          </div>
+
+          <!-- Live Chat Tab Panel -->
+          <div id="chat-panel" class="hidden flex-grow flex flex-col min-h-0">
+            <div class="chat-container flex-grow flex flex-col min-h-0 bg-slate-950/40 rounded-xl border border-white/10 overflow-hidden">
+              <div id="chat-messages" class="chat-messages flex-grow p-3 overflow-y-auto space-y-2 text-xs h-[300px] xl:h-auto">
+                <div class="text-center py-6 text-white/40">Select a lecture to join chat feed...</div>
+              </div>
+              <div class="chat-input-area p-2 border-t border-white/10 bg-slate-950/80">
+                <form id="chat-form" class="chat-form flex gap-1.5">
+                  <input id="chat-input" type="text" autocomplete="off" placeholder="Say something in class..." required class="chat-input flex-1 px-3 py-2 rounded-lg bg-white/10 text-xs text-white border border-white/10 focus:outline-none focus:border-cyan-400" />
+                  <button type="submit" class="chat-send-btn px-3 py-2 rounded-lg bg-cyan-500 hover:bg-cyan-600 text-slate-950 text-xs font-bold transition">
+                    Send
+                  </button>
+                </form>
+              </div>
+            </div>
+          </div>
         </aside>
       </div>
     </main>
   </div>
 
   <%- include('../partials/toast') %>
+  <script src="/socket.io/socket.io.js"></script>
+  <script>
+    // Configuration read by the player page
+    const chatUser = {
+      id: '<%= user._id %>',
+      username: '<%= user.name %>',
+      role: '<%= user.role %>'
+    };
+  </script>
   <script src="/js/api.js"></script>
   <script src="/js/toast.js"></script>
   <script src="/js/auth-guard.js"></script>

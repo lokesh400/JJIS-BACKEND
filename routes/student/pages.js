@@ -1,4 +1,7 @@
 const express = require('express');
+const Class = require('../../models/Class');
+const Course = require('../../models/Course');
+const { auth } = require('../../middleware/auth');
 
 const router = express.Router();
 
@@ -29,8 +32,8 @@ router.get('/student/purchase-courses', (req, res) =>
 router.get('/student/course/:courseId', (req, res) =>
   res.render('student/course-view', { title: 'Course Detail' })
 );
-router.get('/student/course/:courseId/player', (req, res) =>
-  res.render('student/course-player', { title: 'Course Player' })
+router.get('/student/course/:courseId/player', auth, (req, res) =>
+  res.render('student/course-player', { title: 'Course Player', user: req.user })
 );
 router.get('/student/purchases', (req, res) => res.render('student/purchase-history', { title: 'My Purchases' }));
 router.get('/student/study', (req, res) => res.render('student/study', { title: 'Study' }));
@@ -39,5 +42,35 @@ router.get('/student/battleground-prizes', (req, res) =>
   res.render('student/battleground-prizes', { title: 'Battleground Prizes' })
 );
 router.get('/student/profile', (req, res) => res.render('student/dashboard', { title: 'Profile' }));
+
+router.get('/student/live-classes', auth, (req, res) => {
+  res.render('student/live-classes', { title: 'Live Classes' });
+});
+
+router.get('/classroom/:classId', auth, async (req, res, next) => {
+  try {
+    const course = await Course.findOne({ 'lectures._id': req.params.classId });
+    if (course) {
+      return res.redirect(`/student/course/${course._id}/player?lectureId=${req.params.classId}`);
+    }
+
+    // Fallback search in old Class model if any exists
+    const cls = await Class.findById(req.params.classId);
+    if (!cls) {
+      return res.status(404).send('Class or lecture session not found.');
+    }
+
+    // Fallback render if no Course found
+    const token = Buffer.from(cls.youtubeId).toString('base64');
+    res.render('student/classroom', {
+      title: cls.title,
+      cls,
+      token,
+      user: req.user
+    });
+  } catch (err) {
+    next(err);
+  }
+});
 
 module.exports = router;

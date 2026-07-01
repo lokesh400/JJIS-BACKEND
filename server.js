@@ -1,6 +1,8 @@
 // EJS route: Study page (purchased test series)
 require('dotenv').config();
 const express       = require('express');
+const http          = require('http');
+const socketIo      = require('socket.io');
 const cors          = require('cors');
 const session       = require('express-session');
 const MongoStore    = require('connect-mongo').MongoStore;
@@ -16,6 +18,8 @@ const { auth } = require('./middleware/auth')
 connectDB();
 
 const app    = express();
+const server = http.createServer(app);
+const io     = socketIo(server);
 const isProd = process.env.NODE_ENV === 'production';
 const mongoUri = process.env.MONGODB_URI || process.env.MONGO_URI;
 const sessionCookieSameSite = (
@@ -58,8 +62,17 @@ const corsOptions = {
   optionsSuccessStatus: 204,
 };
 
+
+// app.use(cors());
+// app.use(session({
+//     secret: 'mysessionsecret',
+//     resave: false,
+//     saveUninitialized: false,
+// }));
+
 app.use(cors(corsOptions));
 app.options('*', cors(corsOptions));
+
 
 // ── Body parsers ───────────────────────────────────────────────────────────
 app.use(express.json({ limit: '50mb' }));
@@ -150,6 +163,7 @@ app.use('/api/ott',         require('./routes/ott'));
 app.use('/api/battlegrounds/admin', require('./routes/admin/battlegrounds'));
 app.use('/api/battlegrounds', require('./routes/student/battlegrounds'));
 app.use('/apiott',          require('./routes/ott'));
+app.use('/api/live-classes', require('./routes/liveClasses'));
 
 app.get('/api/exams-targeted', (req, res) => {
   res.json([
@@ -181,8 +195,66 @@ app.use((req, res) => {
   res.status(404).render('404', { title: 'Page Not Found' });
 });
 
+// ChatMessage model
+const ChatMessage = require('./models/ChatMessage');
+
+// ── Socket.io Event Handling ───────────────────────────────────────────────────
+io.on('connection', (socket) => {
+  let currentRoom = null;
+  let currentUser = null;
+
+  socket.on('joinRoom', async ({ classId, user }) => {
+    currentRoom = `class_${classId}`;
+    currentUser = user;
+    socket.join(currentRoom);
+
+    try {
+      const messages = await ChatMessage.find({ classId })
+        .sort({ timestamp: 1 })
+        .limit(60);
+      socket.emit('loadHistory', messages);
+    } catch (err) {
+      console.error('Chat history loading error:', err.message);
+    }
+  });
+
+  socket.on('chatMessage', async ({ classId, message }) => {
+    if (!currentUser || !currentRoom) return;
+
+    try {
+      const chatMsg = new ChatMessage({
+        classId,
+        userId: currentUser.id || currentUser._id,
+        username: currentUser.username,
+        role: currentUser.role,
+        message: message
+      });
+
+      const savedMsg = await chatMsg.save();
+
+      io.to(currentRoom).emit('message', {
+        id: savedMsg._id,
+        classId: savedMsg.classId,
+        userId: savedMsg.userId,
+        username: savedMsg.username,
+        role: savedMsg.role,
+        message: savedMsg.message,
+        timestamp: savedMsg.timestamp
+      });
+    } catch (err) {
+      console.error('Save chat message error:', err.message);
+    }
+  });
+
+  socket.on('disconnect', () => {
+    if (currentRoom) {
+      socket.leave(currentRoom);
+    }
+  });
+});
+
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => {
+server.listen(PORT, () => {
   console.log(`🚀 Garud Classes running at http://localhost:${PORT}`);
   startKeepAlive();
 });

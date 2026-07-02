@@ -77,7 +77,7 @@ router.post('/create-order', auth, async (req, res) => {
       status: 'success',
     });
     if (existing) {
-      return res.status(400).json({ message: 'Item already purchased' });
+      return res.status(200).json({ success: true, purchaseId: existing._id, alreadyPurchased: true });
     }
 
     // Razorpay receipt must be <= 40 chars

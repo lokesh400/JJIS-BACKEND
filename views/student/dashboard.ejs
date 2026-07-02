@@ -171,6 +171,14 @@
             </h3>
             <div id="container-completed" class="flex overflow-x-auto pb-4 gap-4 snap-x scrollbar-hide hide-scrollbar"></div>
           </div>
+
+          <!-- Cancelled -->
+          <div id="section-cancelled" class="hidden space-y-4 bg-white rounded-2xl shadow-sm border border-slate-100 p-5 md:p-6">
+            <h3 class="font-bold text-slate-800 text-base md:text-lg flex items-center gap-2">
+              <span class="text-xl">❌</span> Cancelled
+            </h3>
+            <div id="container-cancelled" class="flex overflow-x-auto pb-4 gap-4 snap-x scrollbar-hide hide-scrollbar"></div>
+          </div>
         </div>
       </div>
 
@@ -222,10 +230,12 @@
       const sectionOngoing = document.getElementById('section-ongoing');
       const sectionUpcoming = document.getElementById('section-upcoming');
       const sectionCompleted = document.getElementById('section-completed');
+      const sectionCancelled = document.getElementById('section-cancelled');
       
       const containerOngoing = document.getElementById('container-ongoing');
       const containerUpcoming = document.getElementById('container-upcoming');
       const containerCompleted = document.getElementById('container-completed');
+      const containerCancelled = document.getElementById('container-cancelled');
 
       let activeCourse = null;
 
@@ -279,6 +289,7 @@
         const ongoingList = [];
         const upcomingList = [];
         const completedList = [];
+        const cancelledList = [];
 
         if (Array.isArray(activeCourse.subjects)) {
           activeCourse.subjects.forEach(subject => {
@@ -295,6 +306,8 @@
                   ongoingList.push(lecData);
                 } else if (lecture.status === 'scheduled') {
                   upcomingList.push(lecData);
+                } else if (lecture.status === 'cancelled') {
+                  cancelledList.push(lecData);
                 } else {
                   if (lecture.scheduledAt) {
                     const today = new Date();
@@ -314,6 +327,7 @@
         renderHorizontalList(ongoingList, sectionOngoing, containerOngoing, 'No ongoing classes.');
         renderHorizontalList(upcomingList, sectionUpcoming, containerUpcoming, 'No upcoming classes.');
         renderHorizontalList(completedList, sectionCompleted, containerCompleted, 'No completed lectures.');
+        renderHorizontalList(cancelledList, sectionCancelled, containerCancelled, 'No cancelled classes.');
       }
 
       function renderHorizontalList(list, sectionEl, containerEl, emptyMsg) {
@@ -344,6 +358,13 @@
             actionHtml = `
               <div class="mt-3 w-full text-center px-4 py-2.5 bg-blue-50 text-blue-700 text-xs font-bold rounded-xl border border-blue-100">
                 📅 ${formattedDate}
+              </div>
+            `;
+          } else if (lecture.status === 'cancelled') {
+            badgeHtml = `<span class="px-2 py-0.5 bg-slate-100 text-slate-600 rounded-md text-[9px] font-black tracking-widest uppercase mb-2 inline-block">CANCELLED</span>`;
+            actionHtml = `
+              <div class="mt-3 w-full text-center px-4 py-2.5 bg-slate-50 text-slate-400 text-xs font-bold rounded-xl border border-slate-100">
+                🚫 Class Cancelled
               </div>
             `;
           } else {

@@ -220,6 +220,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 <option value="ended" ${lecture.status === 'ended' ? 'selected' : ''}>Recorded / Ended</option>
                 <option value="live" ${lecture.status === 'live' ? 'selected' : ''}>Live Session</option>
                 <option value="scheduled" ${lecture.status === 'scheduled' ? 'selected' : ''}>Scheduled Session</option>
+                <option value="cancelled" ${lecture.status === 'cancelled' ? 'selected' : ''}>Cancelled</option>
               </select>
             </div>
             <div>
@@ -609,7 +610,8 @@ document.addEventListener('DOMContentLoaded', async () => {
           card.className = "relative bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm hover:shadow-md transition cursor-pointer flex items-center justify-between p-4 group";
           
           const isLive = lecture.status === 'live';
-          const badgeColor = isLive ? 'bg-red-500' : 'bg-green-500';
+          const isCancelled = lecture.status === 'cancelled';
+          const badgeColor = isLive ? 'bg-red-500' : isCancelled ? 'bg-slate-400' : 'bg-green-500';
           const docCount = lecture.pdfs ? lecture.pdfs.length : 0;
 
           card.innerHTML = `
@@ -621,7 +623,7 @@ document.addEventListener('DOMContentLoaded', async () => {
               <div>
                 <h4 class="text-sm font-bold text-slate-800 group-hover:text-blue-600 transition">${escapeHtml(lecture.title || 'Untitled')}</h4>
                 <div class="flex items-center gap-3 mt-1">
-                  <span class="text-[10px] font-bold text-slate-500 uppercase"><i class="fas fa-circle text-[8px] mr-1 ${isLive ? 'text-red-500' : 'text-slate-400'}"></i>${lecture.status}</span>
+                  <span class="text-[10px] font-bold text-slate-500 uppercase"><i class="fas fa-circle text-[8px] mr-1 ${isLive ? 'text-red-500' : isCancelled ? 'text-slate-300' : 'text-slate-400'}"></i>${lecture.status}</span>
                   <span class="text-[10px] font-bold text-slate-500"><i class="fas fa-calendar-alt mr-1 text-slate-400"></i>${new Date(lecture.scheduledAt).toLocaleString()}</span>
                   <span class="text-[10px] font-bold text-slate-500"><i class="fas fa-file-pdf mr-1 text-slate-400"></i>${docCount} Attachments</span>
                 </div>

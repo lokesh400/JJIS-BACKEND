@@ -43,9 +43,7 @@ router.get('/student/battleground-prizes', (req, res) =>
 );
 router.get('/student/profile', (req, res) => res.render('student/dashboard', { title: 'Profile' }));
 
-router.get('/student/live-classes', auth, (req, res) => {
-  res.render('student/live-classes', { title: 'Live Classes' });
-});
+
 
 router.get('/classroom/:classId', auth, async (req, res, next) => {
   try {

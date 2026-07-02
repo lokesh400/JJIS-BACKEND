@@ -30,7 +30,7 @@ const lectureSchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      enum: ['scheduled', 'live', 'ended'],
+      enum: ['scheduled', 'live', 'ended', 'cancelled'],
       default: 'ended',
     },
     scheduledAt: {

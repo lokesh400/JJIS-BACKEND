@@ -21,7 +21,6 @@ const ADMIN_LINKS = [
 
 const STUDENT_LINKS = [
   { href: '/student/dashboard',      label: 'Dashboard',       icon: iconHome() },
-  { href: '/student/live-classes',   label: 'Live Classes',    icon: iconVideo() },
   { href: '/student/purchase-series',label: 'Purchase Series', icon: iconLayers() },
   { href: '/student/purchase-courses',label: 'Purchase Courses', icon: iconBook() },
   { href: '/student/study',          label: 'Study',           icon: iconBook() },

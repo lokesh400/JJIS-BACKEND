@@ -1,5 +1,5 @@
 <%- include('../partials/head', { title: 'Dashboard' }) %>
-<body class="min-h-screen bg-[#fffaf2] text-slate-900">
+<body class="min-h-screen bg-slate-50 text-slate-900">
   <%- include('../partials/navbar') %>
   <%- include('../partials/sidebar') %>
 
@@ -10,9 +10,9 @@
       font-family: 'Outfit', sans-serif;
       min-height: calc(100vh - 3.5rem);
       background:
-        radial-gradient(circle at 8% 8%, rgba(250, 204, 21, 0.22), transparent 34%),
-        radial-gradient(circle at 94% 14%, rgba(34, 197, 94, 0.15), transparent 36%),
-        linear-gradient(180deg, #fff8e8 0%, #fffcf5 44%, #ffffff 100%);
+        radial-gradient(circle at 15% 50%, rgba(99, 102, 241, 0.08), transparent 50%),
+        radial-gradient(circle at 85% 30%, rgba(56, 189, 248, 0.08), transparent 50%),
+        linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
     }
 
     .dash-main {
@@ -108,6 +108,14 @@
         box-shadow: 0 0 0 0 rgba(239, 68, 68, 0);
       }
     }
+  
+    .hide-scrollbar::-webkit-scrollbar {
+      display: none;
+    }
+    .hide-scrollbar {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
   </style>
 
   <div class="md:ml-60 pt-14 page-body dash-shell dash-main">
@@ -130,34 +138,41 @@
       </section>
 
       <!-- Interactive Subject-Wise Schedule -->
-      <section class="bg-white rounded-2xl shadow-sm border border-slate-100 p-5 md:p-6 mt-6 fade-up-1">
-        <div id="cohort-empty-state" class="hidden py-12 text-center">
+      <div class="mt-6 fade-up-1">
+        <div id="cohort-empty-state" class="hidden py-12 text-center bg-white rounded-2xl shadow-sm border border-slate-100 p-5 md:p-6">
           <div class="text-4xl mb-3">📚</div>
           <p class="text-sm font-semibold text-slate-600">No active cohorts found</p>
           <p class="text-xs text-slate-400 mt-1 max-w-sm mx-auto">You have not purchased any courses yet. Unlock a course to view scheduled lectures and interactive feeds.</p>
           <a href="/student/purchase-courses" class="inline-block mt-4 px-4 py-2 bg-slate-800 text-white rounded-xl text-xs font-bold hover:bg-slate-900 transition">Browse Courses</a>
         </div>
 
-        <div id="cohort-schedule-content" class="hidden mt-6 space-y-6">
-          <!-- Status Tabs -->
-          <div class="flex items-center gap-1.5 border-b border-slate-100 pb-px">
-            <button id="tab-ongoing" class="schedule-tab active px-4 py-2 border-b-2 border-orange-500 text-xs font-bold text-slate-800 transition">
-              Ongoing / Live <span id="count-ongoing" class="ml-1 bg-red-100 text-red-600 px-1.5 py-0.5 rounded-full text-[10px] hidden">0</span>
-            </button>
-            <button id="tab-upcoming" class="schedule-tab px-4 py-2 border-b-2 border-transparent text-xs font-bold text-slate-500 hover:text-slate-800 transition">
-              Upcoming <span id="count-upcoming" class="ml-1 bg-blue-100 text-blue-600 px-1.5 py-0.5 rounded-full text-[10px] hidden">0</span>
-            </button>
-            <button id="tab-completed" class="schedule-tab px-4 py-2 border-b-2 border-transparent text-xs font-bold text-slate-500 hover:text-slate-800 transition">
-              Completed <span id="count-completed" class="ml-1 bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded-full text-[10px] hidden">0</span>
-            </button>
+        
+        <div id="cohort-schedule-content" class="hidden flex flex-col gap-6">
+          <!-- Ongoing / Live -->
+          <div id="section-ongoing" class="hidden space-y-4 bg-white rounded-2xl shadow-sm border border-slate-100 p-5 md:p-6">
+            <h3 class="font-bold text-slate-800 text-base md:text-lg flex items-center gap-2">
+              <span class="w-2.5 h-2.5 rounded-full bg-red-500 pulse-live"></span> Live / Ongoing
+            </h3>
+            <div id="container-ongoing" class="flex overflow-x-auto pb-4 gap-4 snap-x scrollbar-hide hide-scrollbar"></div>
           </div>
 
-          <!-- Schedule Lists Grouped Subject-wise -->
-          <div id="schedule-tab-content" class="min-h-[150px] space-y-4">
-            <!-- Dynamic Content Renders Here -->
+          <!-- Upcoming -->
+          <div id="section-upcoming" class="hidden space-y-4 bg-white rounded-2xl shadow-sm border border-slate-100 p-5 md:p-6">
+            <h3 class="font-bold text-slate-800 text-base md:text-lg flex items-center gap-2">
+              <span class="text-xl">📅</span> Upcoming
+            </h3>
+            <div id="container-upcoming" class="flex overflow-x-auto pb-4 gap-4 snap-x scrollbar-hide hide-scrollbar"></div>
+          </div>
+
+          <!-- Completed -->
+          <div id="section-completed" class="hidden space-y-4 bg-white rounded-2xl shadow-sm border border-slate-100 p-5 md:p-6">
+            <h3 class="font-bold text-slate-800 text-base md:text-lg flex items-center gap-2">
+              <span class="text-xl">✅</span> Completed
+            </h3>
+            <div id="container-completed" class="flex overflow-x-auto pb-4 gap-4 snap-x scrollbar-hide hide-scrollbar"></div>
           </div>
         </div>
-      </section>
+      </div>
 
       <section class="grid grid-cols-2 lg:grid-cols-4 gap-4 mt-6 fade-up-1">
         <a href="/student/study" class="dash-action p-4 md:p-5 flex flex-col gap-2.5">
@@ -203,42 +218,17 @@
       const cohortSelector = document.getElementById('cohort-selector');
       const cohortEmptyState = document.getElementById('cohort-empty-state');
       const cohortScheduleContent = document.getElementById('cohort-schedule-content');
-      const scheduleTabContent = document.getElementById('schedule-tab-content');
+      
+      const sectionOngoing = document.getElementById('section-ongoing');
+      const sectionUpcoming = document.getElementById('section-upcoming');
+      const sectionCompleted = document.getElementById('section-completed');
+      
+      const containerOngoing = document.getElementById('container-ongoing');
+      const containerUpcoming = document.getElementById('container-upcoming');
+      const containerCompleted = document.getElementById('container-completed');
 
-      const tabOngoing = document.getElementById('tab-ongoing');
-      const tabUpcoming = document.getElementById('tab-upcoming');
-      const tabCompleted = document.getElementById('tab-completed');
-
-      const countOngoing = document.getElementById('count-ongoing');
-      const countUpcoming = document.getElementById('count-upcoming');
-      const countCompleted = document.getElementById('count-completed');
-
-      let currentTab = 'ongoing';
       let activeCourse = null;
 
-      // Tab switcher
-      const tabs = [
-        { el: tabOngoing, name: 'ongoing' },
-        { el: tabUpcoming, name: 'upcoming' },
-        { el: tabCompleted, name: 'completed' }
-      ];
-
-      tabs.forEach(tab => {
-        if (tab.el) {
-          tab.el.addEventListener('click', () => {
-            tabs.forEach(t => {
-              t.el.classList.remove('active', 'border-orange-500', 'text-slate-800');
-              t.el.classList.add('border-transparent', 'text-slate-500');
-            });
-            tab.el.classList.remove('border-transparent', 'text-slate-500');
-            tab.el.classList.add('active', 'border-orange-500', 'text-slate-800');
-            currentTab = tab.name;
-            renderSchedule();
-          });
-        }
-      });
-
-      // Load student purchased cohorts
       try {
         const purchases = await API.get('/purchase/my?itemType=Course');
         if (!purchases || purchases.length === 0) {
@@ -248,7 +238,6 @@
           return;
         }
 
-        // Populating selector
         cohortSelector.innerHTML = purchases.map((p, idx) => {
           const course = p.course || p.itemId;
           if (!course) return '';
@@ -273,12 +262,11 @@
 
       async function loadCohortDetails(courseId) {
         try {
-          scheduleTabContent.innerHTML = '<div class="text-center py-8 text-slate-400 text-xs">Loading schedules...</div>';
           const course = await API.get(`/courses/published/${courseId}`);
           activeCourse = course;
           renderSchedule();
         } catch (err) {
-          scheduleTabContent.innerHTML = `<div class="text-center py-8 text-red-500 text-xs">Error loading schedule: ${escapeHtml(err.message)}</div>`;
+          console.error('Error loading schedule:', err);
         }
       }
 
@@ -288,7 +276,6 @@
         cohortEmptyState.classList.add('hidden');
         cohortScheduleContent.classList.remove('hidden');
 
-        // Compile lectures list with subject details from activeCourse
         const ongoingList = [];
         const upcomingList = [];
         const completedList = [];
@@ -309,105 +296,83 @@
                 } else if (lecture.status === 'scheduled') {
                   upcomingList.push(lecData);
                 } else {
-                  completedList.push(lecData);
+                  if (lecture.scheduledAt) {
+                    const today = new Date();
+                    const lecDate = new Date(lecture.scheduledAt);
+                    if (lecDate.getFullYear() === today.getFullYear() &&
+                        lecDate.getMonth() === today.getMonth() &&
+                        lecDate.getDate() === today.getDate()) {
+                      completedList.push(lecData);
+                    }
+                  }
                 }
               });
             });
           });
         }
 
-        // Update counts
-        updateCountBadge(countOngoing, ongoingList.length);
-        updateCountBadge(countUpcoming, upcomingList.length);
-        updateCountBadge(countCompleted, completedList.length);
+        renderHorizontalList(ongoingList, sectionOngoing, containerOngoing, 'No ongoing classes.');
+        renderHorizontalList(upcomingList, sectionUpcoming, containerUpcoming, 'No upcoming classes.');
+        renderHorizontalList(completedList, sectionCompleted, containerCompleted, 'No completed lectures.');
+      }
 
-        // Select the active list based on tab
-        let selectedList = [];
-        if (currentTab === 'ongoing') selectedList = ongoingList;
-        else if (currentTab === 'upcoming') selectedList = upcomingList;
-        else selectedList = completedList;
-
-        if (selectedList.length === 0) {
-          let emptyMsg = 'No ongoing / live classes at the moment.';
-          if (currentTab === 'upcoming') emptyMsg = 'No upcoming classes scheduled.';
-          if (currentTab === 'completed') emptyMsg = 'No completed lectures found.';
-
-          scheduleTabContent.innerHTML = `
-            <div class="text-center py-10 text-slate-400 text-xs bg-slate-50/50 rounded-xl border border-slate-100">
-              <p>${emptyMsg}</p>
+      function renderHorizontalList(list, sectionEl, containerEl, emptyMsg) {
+        sectionEl.classList.remove('hidden');
+        if (!list || list.length === 0) {
+          containerEl.innerHTML = `
+            <div class="w-full text-center py-8 text-slate-400 text-sm italic border border-dashed border-slate-200 rounded-xl">
+              ${emptyMsg}
             </div>
           `;
           return;
         }
-
-        // Group selectedList subject-wise
-        const groups = {};
-        selectedList.forEach(item => {
-          if (!groups[item.subjectName]) groups[item.subjectName] = [];
-          groups[item.subjectName].push(item);
-        });
-
-        // Render groups
-        scheduleTabContent.innerHTML = Object.keys(groups).map(subject => {
-          const items = groups[subject];
-          const cardsHtml = items.map(lecture => {
-            let actionHtml = '';
-            if (lecture.status === 'live') {
-              actionHtml = `
-                <a href="/student/course/${activeCourse._id}/player?lectureId=${lecture._id}" class="px-3.5 py-1.5 rounded-lg bg-red-500 text-white text-xs font-bold hover:bg-red-600 transition flex items-center gap-1.5">
-                  <span class="w-2 h-2 rounded-full bg-white pulse-live"></span> Join Class
-                </a>
-              `;
-            } else if (lecture.status === 'scheduled') {
-              const formattedDate = formatScheduledDate(lecture.scheduledAt);
-              actionHtml = `
-                <div class="px-3 py-1.5 bg-blue-50 text-blue-700 text-xs font-bold rounded-lg border border-blue-100 flex items-center gap-1">
-                  📅 ${formattedDate}
-                </div>
-              `;
-            } else {
-              actionHtml = `
-                <a href="/student/course/${activeCourse._id}/player?lectureId=${lecture._id}" class="px-3 py-1.5 rounded-lg border border-slate-300 text-slate-700 text-xs font-semibold hover:bg-slate-50 transition">
-                  Watch Recording
-                </a>
-              `;
-            }
-
-            return `
-              <div class="bg-white border border-slate-100 rounded-lg p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs">
-                <div>
-                  <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400">${escapeHtml(lecture.chapterName)}</p>
-                  <h5 class="text-xs font-bold text-slate-800 mt-1">${escapeHtml(lecture.title)}</h5>
-                </div>
-                <div class="flex items-center gap-2 self-start sm:self-auto mt-2 sm:mt-0">
-                  ${actionHtml}
-                </div>
+        
+        containerEl.innerHTML = list.map(lecture => {
+          let actionHtml = '';
+          let badgeHtml = '';
+          
+          if (lecture.status === 'live') {
+            badgeHtml = `<span class="px-2 py-0.5 bg-red-100 text-red-600 rounded-md text-[9px] font-black tracking-widest uppercase mb-2 inline-block">LIVE NOW</span>`;
+            actionHtml = `
+              <a href="/student/course/${activeCourse._id}/player?lectureId=${lecture._id}" class="mt-3 w-full block text-center px-4 py-2.5 rounded-xl bg-red-500 text-white text-xs font-bold hover:bg-red-600 transition shadow-sm">
+                Join Class
+              </a>
+            `;
+          } else if (lecture.status === 'scheduled') {
+            const formattedDate = formatScheduledDate(lecture.scheduledAt);
+            badgeHtml = `<span class="px-2 py-0.5 bg-blue-100 text-blue-600 rounded-md text-[9px] font-black tracking-widest uppercase mb-2 inline-block">UPCOMING</span>`;
+            actionHtml = `
+              <div class="mt-3 w-full text-center px-4 py-2.5 bg-blue-50 text-blue-700 text-xs font-bold rounded-xl border border-blue-100">
+                📅 ${formattedDate}
               </div>
             `;
-          }).join('');
+          } else {
+            badgeHtml = `<span class="px-2 py-0.5 bg-emerald-100 text-emerald-600 rounded-md text-[9px] font-black tracking-widest uppercase mb-2 inline-block">COMPLETED</span>`;
+            actionHtml = `
+              <a href="/student/course/${activeCourse._id}/player?lectureId=${lecture._id}" class="mt-3 w-full block text-center px-4 py-2.5 rounded-xl bg-slate-100 text-slate-700 text-xs font-bold hover:bg-slate-200 transition shadow-sm">
+                Watch Recording
+              </a>
+            `;
+          }
 
           return `
-            <div class="subject-block border border-slate-100 rounded-xl p-4 bg-slate-50/50">
-              <h4 class="text-xs font-extrabold uppercase tracking-wider text-slate-400 mb-3 flex items-center gap-1.5">
-                <span class="w-1.5 h-3 bg-orange-500 rounded-full"></span> ${escapeHtml(subject)}
-              </h4>
-              <div class="space-y-2">
-                ${cardsHtml}
+            <div class="min-w-[260px] md:min-w-[280px] w-[260px] md:w-[280px] shrink-0 snap-center bg-white border border-slate-200 hover:border-slate-300 rounded-2xl p-5 flex flex-col justify-between shadow-sm hover:shadow-lg hover:-translate-y-1 transition-all duration-300 group relative overflow-hidden">
+              <div class="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-slate-200 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
+              <div>
+                ${badgeHtml}
+                <p class="text-[10px] font-extrabold uppercase tracking-[0.15em] text-slate-500 truncate" title="${escapeHtml(lecture.subjectName)} - ${escapeHtml(lecture.chapterName)}">
+                  ${escapeHtml(lecture.subjectName)} • ${escapeHtml(lecture.chapterName)}
+                </p>
+                <h5 class="text-[15px] font-bold text-slate-900 mt-1.5 line-clamp-2 leading-tight group-hover:text-blue-700 transition-colors">${escapeHtml(lecture.title)}</h5>
+              </div>
+              <div class="mt-4 pt-4 border-t border-slate-50 border-dashed">
+                ${actionHtml}
               </div>
             </div>
           `;
-        }).join('<div class="h-4"></div>');
+        }).join('');
       }
 
-      function updateCountBadge(badgeEl, count) {
-        if (!badgeEl) return;
-        if (count > 0) {
-          badgeEl.textContent = count;
-          badgeEl.classList.remove('hidden');
-        } else {
-          badgeEl.classList.add('hidden');
-        }
-      }
 
       function formatScheduledDate(dateString) {
         if (!dateString) return 'TBD';
@@ -423,8 +388,8 @@
       }
 
       function escapeHtml(str) {
-        if (!str) return '';
-        return str
+        if (str === null || str === undefined) return '';
+        return String(str)
           .replace(/&/g, '&amp;')
           .replace(/</g, '&lt;')
           .replace(/>/g, '&gt;')

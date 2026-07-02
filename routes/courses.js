@@ -629,4 +629,180 @@ router.patch('/admin/:courseId/lecture/:subjectIndex/:chapterIndex/:lectureIndex
   }
 });
 
+
+// --- Granular Curriculum Routes ---
+
+async function saveCourseAndRebuildLectures(course) {
+  const flatLectures = [];
+  if (course.subjects && Array.isArray(course.subjects)) {
+    course.subjects.forEach(subj => {
+      if (subj.chapters && Array.isArray(subj.chapters)) {
+        subj.chapters.forEach(chap => {
+          if (chap.lectures && Array.isArray(chap.lectures)) {
+            chap.lectures.forEach(lec => {
+              flatLectures.push(lec);
+            });
+          }
+        });
+      }
+    });
+  }
+  course.lectures = flatLectures;
+  await course.save();
+  return course;
+}
+
+// Add Subject
+router.post('/:id/subjects/granular', auth, adminOnly, async (req, res) => {
+  try {
+    const course = await Course.findById(req.params.id);
+    if (!course) return res.status(404).json({ message: 'Course not found' });
+    course.subjects.push({ name: req.body.name || 'Untitled Subject', chapters: [] });
+    await saveCourseAndRebuildLectures(course);
+    res.json(course.subjects[course.subjects.length - 1]);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// Update Subject
+router.put('/:id/subjects/:subjectId', auth, adminOnly, async (req, res) => {
+  try {
+    const course = await Course.findById(req.params.id);
+    if (!course) return res.status(404).json({ message: 'Course not found' });
+    const subject = course.subjects.id(req.params.subjectId);
+    if (!subject) return res.status(404).json({ message: 'Subject not found' });
+    if (req.body.name !== undefined) subject.name = req.body.name;
+    await saveCourseAndRebuildLectures(course);
+    res.json({ success: true, subject });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// Delete Subject
+router.delete('/:id/subjects/:subjectId', auth, adminOnly, async (req, res) => {
+  try {
+    const course = await Course.findById(req.params.id);
+    if (!course) return res.status(404).json({ message: 'Course not found' });
+    course.subjects.pull({ _id: req.params.subjectId });
+    await saveCourseAndRebuildLectures(course);
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// Add Chapter
+router.post('/:id/subjects/:subjectId/chapters', auth, adminOnly, async (req, res) => {
+  try {
+    const course = await Course.findById(req.params.id);
+    if (!course) return res.status(404).json({ message: 'Course not found' });
+    const subject = course.subjects.id(req.params.subjectId);
+    if (!subject) return res.status(404).json({ message: 'Subject not found' });
+    subject.chapters.push({ name: req.body.name || 'Untitled Chapter', lectures: [] });
+    await saveCourseAndRebuildLectures(course);
+    res.json(subject.chapters[subject.chapters.length - 1]);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// Update Chapter
+router.put('/:id/subjects/:subjectId/chapters/:chapterId', auth, adminOnly, async (req, res) => {
+  try {
+    const course = await Course.findById(req.params.id);
+    if (!course) return res.status(404).json({ message: 'Course not found' });
+    const subject = course.subjects.id(req.params.subjectId);
+    if (!subject) return res.status(404).json({ message: 'Subject not found' });
+    const chapter = subject.chapters.id(req.params.chapterId);
+    if (!chapter) return res.status(404).json({ message: 'Chapter not found' });
+    if (req.body.name !== undefined) chapter.name = req.body.name;
+    await saveCourseAndRebuildLectures(course);
+    res.json({ success: true, chapter });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// Delete Chapter
+router.delete('/:id/subjects/:subjectId/chapters/:chapterId', auth, adminOnly, async (req, res) => {
+  try {
+    const course = await Course.findById(req.params.id);
+    if (!course) return res.status(404).json({ message: 'Course not found' });
+    const subject = course.subjects.id(req.params.subjectId);
+    if (!subject) return res.status(404).json({ message: 'Subject not found' });
+    subject.chapters.pull({ _id: req.params.chapterId });
+    await saveCourseAndRebuildLectures(course);
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// Add Lecture
+router.post('/:id/subjects/:subjectId/chapters/:chapterId/lectures', auth, adminOnly, async (req, res) => {
+  try {
+    const course = await Course.findById(req.params.id);
+    if (!course) return res.status(404).json({ message: 'Course not found' });
+    const subject = course.subjects.id(req.params.subjectId);
+    if (!subject) return res.status(404).json({ message: 'Subject not found' });
+    const chapter = subject.chapters.id(req.params.chapterId);
+    if (!chapter) return res.status(404).json({ message: 'Chapter not found' });
+    chapter.lectures.push({
+      title: req.body.title || 'Untitled Lecture',
+      videoLink: req.body.videoLink || '',
+      status: req.body.status || 'ended',
+      scheduledAt: req.body.scheduledAt || new Date(),
+      pdfs: req.body.pdfs || []
+    });
+    await saveCourseAndRebuildLectures(course);
+    res.json(chapter.lectures[chapter.lectures.length - 1]);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// Update Lecture
+router.put('/:id/subjects/:subjectId/chapters/:chapterId/lectures/:lectureId', auth, adminOnly, async (req, res) => {
+  try {
+    const course = await Course.findById(req.params.id);
+    if (!course) return res.status(404).json({ message: 'Course not found' });
+    const subject = course.subjects.id(req.params.subjectId);
+    if (!subject) return res.status(404).json({ message: 'Subject not found' });
+    const chapter = subject.chapters.id(req.params.chapterId);
+    if (!chapter) return res.status(404).json({ message: 'Chapter not found' });
+    const lecture = chapter.lectures.id(req.params.lectureId);
+    if (!lecture) return res.status(404).json({ message: 'Lecture not found' });
+    
+    if (req.body.title !== undefined) lecture.title = req.body.title;
+    if (req.body.videoLink !== undefined) lecture.videoLink = req.body.videoLink;
+    if (req.body.status !== undefined) lecture.status = req.body.status;
+    if (req.body.scheduledAt !== undefined) lecture.scheduledAt = req.body.scheduledAt;
+    if (req.body.pdfs !== undefined) lecture.pdfs = req.body.pdfs;
+
+    await saveCourseAndRebuildLectures(course);
+    res.json({ success: true, lecture });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// Delete Lecture
+router.delete('/:id/subjects/:subjectId/chapters/:chapterId/lectures/:lectureId', auth, adminOnly, async (req, res) => {
+  try {
+    const course = await Course.findById(req.params.id);
+    if (!course) return res.status(404).json({ message: 'Course not found' });
+    const subject = course.subjects.id(req.params.subjectId);
+    if (!subject) return res.status(404).json({ message: 'Subject not found' });
+    const chapter = subject.chapters.id(req.params.chapterId);
+    if (!chapter) return res.status(404).json({ message: 'Chapter not found' });
+    chapter.lectures.pull({ _id: req.params.lectureId });
+    await saveCourseAndRebuildLectures(course);
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
 module.exports = router;

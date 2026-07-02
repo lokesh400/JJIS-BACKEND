@@ -111,61 +111,9 @@
   </style>
 
   <div class="md:ml-60 pt-14 page-body dash-shell dash-main">
-    <div class="max-w-7xl w-full mx-auto px-4 md:px-8 py-6 md:py-8 dash-content">
-      <section class="dash-hero p-6 md:p-8 fade-up">
-        <div class="relative z-10">
-          <p class="text-white/60 text-sm font-semibold uppercase tracking-[0.22em]">Student Command Center</p>
-          <h1 id="welcome-title" class="dash-title text-4xl md:text-5xl text-white font-extrabold mt-2">Welcome back!</h1>
-          <p class="text-base md:text-lg text-white/75 mt-2 max-w-2xl">Track your momentum, revisit your study material, and jump straight into tests and purchased courses with zero friction.</p>
-
-          <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-6 max-w-3xl">
-            <div class="rounded-xl border border-white/20 bg-white/10 p-3.5">
-              <p class="text-xs uppercase tracking-wide text-white/60">Focus</p>
-              <p class="text-white text-base font-semibold mt-1">Daily Practice</p>
-            </div>
-            <div class="rounded-xl border border-white/20 bg-white/10 p-3.5">
-              <p class="text-xs uppercase tracking-wide text-white/60">Mode</p>
-              <p class="text-white text-base font-semibold mt-1">Exam Simulation</p>
-            </div>
-            <div class="rounded-xl border border-white/20 bg-white/10 p-3.5">
-              <p class="text-xs uppercase tracking-wide text-white/60">Target</p>
-              <p class="text-white text-base font-semibold mt-1">Consistent Improvement</p>
-            </div>
-          </div>
-
-          <div class="flex flex-wrap gap-3 mt-6">
-            <a href="/student/study" class="px-5 py-2.5 bg-orange-500 hover:bg-orange-600 text-white rounded-xl font-semibold text-base transition">Continue Study</a>
-            <a href="/student/purchase-series" class="px-5 py-2.5 bg-white/10 text-white border border-white/25 rounded-xl font-semibold text-base hover:bg-white/20 transition">Explore Test Series</a>
-          </div>
-        </div>
-      </section>
-
-      <section class="grid grid-cols-2 lg:grid-cols-4 gap-4 mt-6 fade-up-1">
-        <a href="/student/study" class="dash-action p-4 md:p-5 flex flex-col gap-2.5">
-          <div class="w-11 h-11 rounded-xl bg-blue-50 flex items-center justify-center text-blue-700 text-xl">&#128218;</div>
-          <p class="text-base font-semibold text-slate-800">Study Hub</p>
-          <p class="text-sm text-slate-500">Access your lectures and revision flow.</p>
-        </a>
-        <a href="/student/purchase-series" class="dash-action p-4 md:p-5 flex flex-col gap-2.5">
-          <div class="w-11 h-11 rounded-xl bg-emerald-50 flex items-center justify-center text-emerald-700 text-xl">&#128722;</div>
-          <p class="text-base font-semibold text-slate-800">Buy Series</p>
-          <p class="text-sm text-slate-500">Unlock new tests and challenges.</p>
-        </a>
-        <a href="/student/tests" class="dash-action p-4 md:p-5 flex flex-col gap-2.5">
-          <div class="w-11 h-11 rounded-xl bg-violet-50 flex items-center justify-center text-violet-700 text-xl">&#128221;</div>
-          <p class="text-base font-semibold text-slate-800">My Tests</p>
-          <p class="text-sm text-slate-500">Attempt and review your test history.</p>
-        </a>
-        <a href="/student/purchases" class="dash-action p-4 md:p-5 flex flex-col gap-2.5">
-          <div class="w-11 h-11 rounded-xl bg-amber-50 flex items-center justify-center text-amber-700 text-xl">&#128179;</div>
-          <p class="text-base font-semibold text-slate-800">Purchases</p>
-          <p class="text-sm text-slate-500">Track all your course and series orders.</p>
-        </a>
-      </section>
-
-      <!-- Cohort Selector & Interactive Subject-Wise Schedule -->
+    <div class="max-w-7xl w-full mx-auto px-4 md:px-8 py-6 md:py-8 dash-content">      <!-- Cohort Selector -->
       <section class="bg-white rounded-2xl shadow-sm border border-slate-100 p-5 md:p-6 mt-6 fade-up-1">
-        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 pb-4">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
             <h2 class="dash-title text-lg font-bold text-slate-800 flex items-center gap-2">
               <span class="text-xl">🎓</span> Selected Cohort
@@ -179,7 +127,10 @@
             </select>
           </div>
         </div>
+      </section>
 
+      <!-- Interactive Subject-Wise Schedule -->
+      <section class="bg-white rounded-2xl shadow-sm border border-slate-100 p-5 md:p-6 mt-6 fade-up-1">
         <div id="cohort-empty-state" class="hidden py-12 text-center">
           <div class="text-4xl mb-3">📚</div>
           <p class="text-sm font-semibold text-slate-600">No active cohorts found</p>
@@ -208,45 +159,28 @@
         </div>
       </section>
 
-      <section class="grid grid-cols-1 xl:grid-cols-[minmax(0,1.2fr),minmax(0,0.8fr)] gap-4 mt-6 fade-up-2 xl:flex-1">
-        <article class="dash-card p-5 md:p-6 h-full">
-          <p class="text-xs uppercase tracking-[0.18em] text-slate-500 font-semibold">Today's Focus</p>
-          <h2 class="dash-title text-2xl md:text-3xl text-slate-900 mt-2">Build Momentum In 3 Steps</h2>
-          <div class="mt-4 space-y-3">
-            <div class="rounded-xl border border-slate-200 bg-white p-3.5 flex items-center justify-between gap-3">
-              <div>
-                <p class="text-base font-semibold text-slate-800">Revise concepts</p>
-                <p class="text-sm text-slate-500 mt-0.5">Open your study area and complete one chapter recap.</p>
-              </div>
-              <a href="/student/study" class="text-sm font-semibold text-blue-700">Start</a>
-            </div>
-            <div class="rounded-xl border border-slate-200 bg-white p-3.5 flex items-center justify-between gap-3">
-              <div>
-                <p class="text-base font-semibold text-slate-800">Attempt tests</p>
-                <p class="text-sm text-slate-500 mt-0.5">Take a timed test and benchmark your speed.</p>
-              </div>
-              <a href="/student/tests" class="text-sm font-semibold text-blue-700">Attempt</a>
-            </div>
-            <div class="rounded-xl border border-slate-200 bg-white p-3.5 flex items-center justify-between gap-3">
-              <div>
-                <p class="text-base font-semibold text-slate-800">Expand resources</p>
-                <p class="text-sm text-slate-500 mt-0.5">Add new series to keep your preparation fresh.</p>
-              </div>
-              <a href="/student/purchase-series" class="text-sm font-semibold text-blue-700">Explore</a>
-            </div>
-          </div>
-        </article>
-
-        <article class="dash-card p-5 md:p-6 h-full">
-          <p class="text-xs uppercase tracking-[0.18em] text-slate-500 font-semibold">Quick Toolkit</p>
-          <h3 class="dash-title text-xl text-slate-900 mt-2">Everything In One Place</h3>
-          <div class="mt-4 grid grid-cols-2 gap-2.5">
-            <a href="/student/study" class="rounded-xl border border-slate-200 bg-white py-2.5 px-3 text-sm font-semibold text-slate-700 hover:bg-slate-50">Lecture Player</a>
-            <a href="/student/tests" class="rounded-xl border border-slate-200 bg-white py-2.5 px-3 text-sm font-semibold text-slate-700 hover:bg-slate-50">Mock Tests</a>
-            <a href="/student/purchase-history" class="rounded-xl border border-slate-200 bg-white py-2.5 px-3 text-sm font-semibold text-slate-700 hover:bg-slate-50">Order History</a>
-            <a href="/student/purchase-courses" class="rounded-xl border border-slate-200 bg-white py-2.5 px-3 text-sm font-semibold text-slate-700 hover:bg-slate-50">Purchase Courses</a>
-          </div>
-        </article>
+      <section class="grid grid-cols-2 lg:grid-cols-4 gap-4 mt-6 fade-up-1">
+        <a href="/student/study" class="dash-action p-4 md:p-5 flex flex-col gap-2.5">
+          <div class="w-11 h-11 rounded-xl bg-blue-50 flex items-center justify-center text-blue-700 text-xl">&#128218;</div>
+          <p class="text-base font-semibold text-slate-800">Study Hub</p>
+          <p class="text-sm text-slate-500">Access your lectures and revision flow.</p>
+        </a>
+        <a href="/student/purchase-series" class="dash-action p-4 md:p-5 flex flex-col gap-2.5">
+          <div class="w-11 h-11 rounded-xl bg-emerald-50 flex items-center justify-center text-emerald-700 text-xl">&#128722;</div>
+          <p class="text-base font-semibold text-slate-800">Buy Series</p>
+          <p class="text-sm text-slate-500">Unlock new tests and challenges.</p>
+        </a>
+        <a href="/student/tests" class="dash-action p-4 md:p-5 flex flex-col gap-2.5">
+          <div class="w-11 h-11 rounded-xl bg-violet-50 flex items-center justify-center text-violet-700 text-xl">&#128221;</div>
+          <p class="text-base font-semibold text-slate-800">My Tests</p>
+          <p class="text-sm text-slate-500">Attempt and review your test history.</p>
+        </a>
+        <a href="/student/purchases" class="dash-action p-4 md:p-5 flex flex-col gap-2.5">
+          <div class="w-11 h-11 rounded-xl bg-amber-50 flex items-center justify-center text-amber-700 text-xl">&#128179;</div>
+          <p class="text-base font-semibold text-slate-800">Purchases</p>
+          <p class="text-sm text-slate-500">Track all your course and series orders.</p>
+        </a>
+      </section>
       </div>
     </div>
   </div>

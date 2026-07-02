@@ -30,6 +30,43 @@ document.addEventListener('DOMContentLoaded', () => {
   const fpSetPasswordBtn = document.getElementById('fp-set-password-btn');
   let resetToken = '';
 
+  const step1 = document.getElementById('step-1-email');
+  const step2 = document.getElementById('step-2-password');
+  const continueBtn = document.getElementById('continue-btn');
+  const emailInput = document.getElementById('email');
+  const displayEmail = document.getElementById('display-email');
+  const changeEmailBtn = document.getElementById('change-email-btn');
+  // const passwordInput already declared later
+
+  if (continueBtn) {
+    continueBtn.addEventListener('click', () => {
+      const email = emailInput.value.trim();
+      if (!email || !email.includes('@')) {
+        toast.error('Please enter a valid email address');
+        emailInput.focus();
+        return;
+      }
+      displayEmail.textContent = email;
+      step1.classList.add('hidden');
+      step2.classList.remove('hidden');
+      setTimeout(() => passwordInput.focus(), 100);
+    });
+
+    emailInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        continueBtn.click();
+      }
+    });
+
+    changeEmailBtn.addEventListener('click', () => {
+      step2.classList.add('hidden');
+      step1.classList.remove('hidden');
+      passwordInput.value = '';
+      setTimeout(() => emailInput.focus(), 100);
+    });
+  }
+
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
     const email    = document.getElementById('email').value.trim();

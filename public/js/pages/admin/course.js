@@ -21,8 +21,6 @@ document.addEventListener('DOMContentLoaded', async () => {
   const imageInput = document.getElementById('course-image');
   const tagsInput = document.getElementById('course-tags');
   const publishedInput = document.getElementById('course-published');
-  const lectureRows = document.getElementById('lecture-rows');
-  const addLectureRowBtn = document.getElementById('add-lecture-row');
   const courseList = document.getElementById('course-list');
   const courseCount = document.getElementById('course-count');
 
@@ -46,83 +44,53 @@ document.addEventListener('DOMContentLoaded', async () => {
     form.reset();
     modalTitle.textContent = 'Create New Course';
     submitBtn.textContent = 'Save Course';
-    lectureRows.innerHTML = '';
-    addLectureInputRow();
   }
-
-  function addPdfInputRow(pdfRows, initial = {}) {
-    const row = document.createElement('div');
-    row.className = 'grid grid-cols-1 md:grid-cols-[1fr_1.4fr_auto] gap-2';
-    row.innerHTML = `
-      <input type="text" class="pdf-title px-3 py-2 border border-gray-300 rounded-lg text-sm" placeholder="PDF title" value="${escapeHtml(initial.title || '')}" />
-      <input type="url" class="pdf-link px-3 py-2 border border-gray-300 rounded-lg text-sm" placeholder="https://zenodo.org/..." value="${escapeHtml(initial.link || '')}" />
-      <button type="button" class="remove-pdf-row px-3 py-2 rounded-lg border border-red-200 text-red-600 text-sm font-semibold hover:bg-red-50">Remove</button>
-    `;
-
-    row.querySelector('.remove-pdf-row').addEventListener('click', () => {
-      row.remove();
-    });
-
-    pdfRows.appendChild(row);
-  }
-
-  function addLectureInputRow(initial = {}) {
-    const row = document.createElement('div');
-    row.className = 'rounded-xl border border-gray-200 bg-white p-3 space-y-3';
-    row.innerHTML = `
-      <div class="grid grid-cols-1 md:grid-cols-[1fr_1.4fr_auto] gap-2">
-        <input type="text" class="lecture-title px-3 py-2 border border-gray-300 rounded-lg text-sm" placeholder="Lecture title" value="${escapeHtml(initial.title || '')}" />
-        <input type="url" class="lecture-link px-3 py-2 border border-gray-300 rounded-lg text-sm" placeholder="https://video-link" value="${escapeHtml(initial.videoLink || '')}" />
-        <button type="button" class="remove-lecture-row px-3 py-2 rounded-lg border border-red-200 text-red-600 text-sm font-semibold hover:bg-red-50">Remove Lecture</button>
-      </div>
-      <div class="rounded-lg border border-slate-200 bg-slate-50 p-3">
-        <div class="flex items-center justify-between mb-2">
-          <p class="text-xs font-semibold text-slate-700">Lecture PDFs</p>
-          <button type="button" class="add-pdf-row px-2 py-1 rounded-md bg-slate-700 text-white text-xs">+ Add PDF</button>
-        </div>
-        <div class="pdf-rows space-y-2"></div>
-      </div>
-    `;
-
-    const pdfRows = row.querySelector('.pdf-rows');
-    const pdfs = Array.isArray(initial.pdfs) ? initial.pdfs : [];
-    pdfs.forEach((pdf) => addPdfInputRow(pdfRows, pdf));
-
-    row.querySelector('.add-pdf-row').addEventListener('click', () => addPdfInputRow(pdfRows));
-
-    row.querySelector('.remove-lecture-row').addEventListener('click', () => {
-      row.remove();
-      if (!lectureRows.children.length) addLectureInputRow();
-    });
-
-    lectureRows.appendChild(row);
-  }
-
   function renderCourses() {
     courseCount.textContent = String(courses.length);
 
     if (!courses.length) {
-      courseList.innerHTML = '<div class="p-6 text-sm text-gray-500">No courses yet. Create your first one.</div>';
+      courseList.innerHTML = '<div class="p-10 text-center text-sm text-slate-400 italic">No courses yet. Create your first one.</div>';
       return;
     }
 
-    courseList.innerHTML = courses.map((course, idx) => `
-      <div class="px-5 py-4 flex items-start justify-between gap-4">
-        <div>
-          <p class="text-sm font-semibold text-gray-800">${escapeHtml(course.name)}</p>
-          <p class="text-xs text-gray-500 mt-1">Lectures: ${course.lectureCount || course.lectures?.length || 0} · Price: Rs ${course.price || 0} · ${course.isPublished ? 'Published' : 'Draft'}</p>
-          <p class="text-xs text-gray-500 mt-1">Created: ${formatDate(course.createdAt)}</p>
-        </div>
-        <div class="flex flex-col items-end gap-2">
-          <span class="text-xs px-2 py-1 rounded-md bg-blue-50 text-blue-700 font-medium">#${idx + 1}</span>
-          <div class="flex gap-2">
-            <button type="button" data-edit-id="${course._id}" class="px-2.5 py-1 text-xs font-semibold rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-100">Edit</button>
-            <button type="button" data-delete-id="${course._id}" class="px-2.5 py-1 text-xs font-semibold rounded-lg border border-red-200 text-red-600 hover:bg-red-50">Delete</button>
+    courseList.innerHTML = courses.map((course, idx) => {
+      const lectureCount = course.lectureCount || (course.lectures ? course.lectures.length : 0);
+      const isPublished = course.isPublished;
+      
+      return `
+      <div class="p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:bg-slate-50 transition group cursor-pointer border-b border-slate-100 last:border-0" data-edit-id="${course._id}">
+        <div class="flex items-center gap-4">
+          <div class="w-14 h-14 rounded-2xl bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-100 flex items-center justify-center shrink-0 shadow-sm">
+            <i class="fas fa-graduation-cap text-xl text-blue-500"></i>
+          </div>
+          <div>
+            <div class="flex items-center gap-2 mb-1">
+              <h4 class="text-base font-bold text-slate-800 group-hover:text-blue-600 transition">${escapeHtml(course.name)}</h4>
+              <span class="px-2 py-0.5 rounded-md text-[9px] font-black tracking-widest uppercase ${isPublished ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-500'}">
+                ${isPublished ? 'Published' : 'Draft'}
+              </span>
+            </div>
+            <div class="flex items-center gap-3 mt-1.5">
+              <span class="text-[11px] font-bold text-slate-500"><i class="fas fa-play-circle text-slate-400 mr-1"></i>${lectureCount} Lectures</span>
+              <span class="text-[11px] font-bold text-slate-500"><i class="fas fa-rupee-sign text-slate-400 mr-1"></i>${course.price || 0}</span>
+              <span class="text-[11px] font-bold text-slate-500 hidden md:inline"><i class="fas fa-calendar-alt text-slate-400 mr-1"></i>${formatDate(course.createdAt)}</span>
+            </div>
           </div>
         </div>
+        
+        <div class="flex items-center gap-2 shrink-0 opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity">
+          <button type="button" data-delete-id="${course._id}" class="w-9 h-9 rounded-xl bg-white border border-slate-200 text-slate-400 hover:text-red-500 hover:border-red-200 hover:bg-red-50 flex items-center justify-center transition shadow-sm" title="Delete Course">
+            <i class="fas fa-trash-alt text-xs"></i>
+          </button>
+          <button type="button" data-edit-id="${course._id}" class="px-4 py-2 rounded-xl bg-blue-50 border border-blue-100 text-blue-600 hover:bg-blue-600 hover:text-white text-xs font-bold transition shadow-sm">
+            Edit Course
+          </button>
+        </div>
       </div>
-    `).join('');
+      `;
+    }).join('');
   }
+
 
   async function deleteCourse(courseId) {
     const course = courses.find((item) => item._id === courseId);
@@ -157,7 +125,6 @@ document.addEventListener('DOMContentLoaded', async () => {
   closeModalBtn.addEventListener('click', closeModal);
   cancelBtn.addEventListener('click', closeModal);
   backdrop.addEventListener('click', closeModal);
-  addLectureRowBtn.addEventListener('click', () => addLectureInputRow());
 
   courseList.addEventListener('click', (event) => {
     const editBtn = event.target.closest('[data-edit-id]');
@@ -197,23 +164,6 @@ document.addEventListener('DOMContentLoaded', async () => {
       return;
     }
 
-    const lectures = Array.from(lectureRows.querySelectorAll(':scope > div'))
-      .map((lectureEl) => {
-        const pdfs = Array.from(lectureEl.querySelectorAll('.pdf-rows > div'))
-          .map((pdfEl) => ({
-            title: pdfEl.querySelector('.pdf-title')?.value.trim() || '',
-            link: pdfEl.querySelector('.pdf-link')?.value.trim() || '',
-          }))
-          .filter((pdf) => pdf.title && pdf.link);
-
-        return {
-          title: lectureEl.querySelector('.lecture-title')?.value.trim() || '',
-          videoLink: lectureEl.querySelector('.lecture-link')?.value.trim() || '',
-          pdfs,
-        };
-      })
-      .filter((lecture) => lecture.title);
-
     setSubmitting(true);
     try {
       const payload = {
@@ -226,7 +176,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         isPublished: publishedInput.checked,
       };
 
-      await API.post('/courses', { ...payload, lectures });
+      await API.post('/courses', payload);
       toast.success('Course created successfully');
 
       closeModal();
@@ -237,8 +187,6 @@ document.addEventListener('DOMContentLoaded', async () => {
       setSubmitting(false);
     }
   });
-
-  addLectureInputRow();
   await loadCourses();
 });
 

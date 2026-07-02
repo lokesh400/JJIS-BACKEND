@@ -1,25 +1,27 @@
 <%- include('../partials/head', { title: 'Create New Course' }) %>
-<body class="min-h-screen bg-slate-50 text-gray-900">
+<body class="min-h-screen bg-[#F8FAFC] text-slate-900 coursepw-shell">
   <%- include('../partials/navbar') %>
   <%- include('../partials/sidebar') %>
 
   <div class="md:ml-60 pt-14 min-h-screen page-body">
-    <div class="page-header px-6 md:px-8 py-7 fade-up">
-      <p class="text-white/50 text-xs font-semibold uppercase tracking-widest mb-1">Admin Panel</p>
-      <h1 class="text-2xl md:text-3xl font-bold text-white">Create New Course</h1>
-      <p class="text-white/60 text-sm mt-1">Add and manage courses for your institute</p>
+    <div class="coursepw-hero p-6 md:p-8 fade-up mb-6">
+      <div class="relative z-10">
+        <p class="text-[11px] md:text-xs font-semibold tracking-[0.2em] uppercase text-slate-200/80 mb-1">Admin Panel</p>
+        <h1 class="coursepw-title text-2xl md:text-3xl lg:text-4xl text-white">Create New Course</h1>
+        <p class="text-sm text-slate-200/90 mt-2">Add and manage courses for your institute</p>
+      </div>
     </div>
 
     <div class="p-6 md:p-8 space-y-6">
-      <section class="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 md:p-6 lift fade-up-1">
+      <section class="bg-white rounded-2xl shadow-sm border border-slate-200 p-5 md:p-6 lift fade-up-1">
         <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
-            <h2 class="text-lg font-semibold text-gray-800">Course Management</h2>
-            <p class="text-sm text-gray-500 mt-1">Create courses with videos and publish them for student purchase.</p>
+            <h2 class="text-lg font-bold text-slate-800">Course Management</h2>
+            <p class="text-sm text-slate-500 mt-1">Create courses with videos and publish them for student purchase.</p>
           </div>
           <button id="open-create-course-modal"
                   type="button"
-                  class="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-garud-highlight text-white font-semibold hover:opacity-95">
+                  class="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-blue-600 text-white text-xs font-bold hover:bg-blue-700 shadow-sm transition">
             <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
               <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/>
             </svg>
@@ -28,10 +30,10 @@
         </div>
       </section>
 
-      <section class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden lift fade-up-2">
-        <div class="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
-          <h3 class="font-semibold text-gray-800">Existing Courses</h3>
-          <span id="course-count" class="text-xs font-medium px-2 py-1 rounded-lg bg-slate-100 text-slate-700">0</span>
+      <section class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden lift fade-up-2">
+        <div class="px-5 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50">
+          <h3 class="font-bold text-slate-800">Existing Courses</h3>
+          <span id="course-count" class="text-xs font-bold px-2 py-1 rounded-lg bg-blue-100 text-blue-700">0</span>
         </div>
 
         <div id="course-list" class="divide-y divide-gray-100 max-h-[28rem] overflow-y-auto">
@@ -47,94 +49,85 @@
        aria-hidden="true">
     <div id="course-modal-backdrop" class="absolute inset-0 bg-slate-900/60"></div>
 
-    <div class="relative w-full max-w-lg bg-white rounded-2xl shadow-2xl border border-gray-100 overflow-hidden">
-      <div class="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
-        <h3 id="course-modal-title" class="text-lg font-semibold text-gray-900">Create New Course</h3>
+    <div class="relative w-full max-w-2xl bg-white rounded-2xl shadow-2xl border border-slate-100 overflow-hidden transform scale-95 transition-transform duration-300">
+      <div class="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50">
+        <h3 id="course-modal-title" class="text-base font-bold text-slate-800">Create New Course</h3>
         <button id="close-create-course-modal"
                 type="button"
-                class="p-2 rounded-lg text-gray-500 hover:bg-gray-100 hover:text-gray-800"
+                class="text-slate-400 hover:text-slate-600 font-bold text-lg"
                 aria-label="Close modal">
-          <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
-          </svg>
+          ✕
         </button>
       </div>
 
-      <form id="create-course-form" class="p-6 space-y-4">
-        <div>
-          <label for="course-name" class="block text-sm font-medium text-gray-700 mb-1">Course Name</label>
-          <input id="course-name"
-                 name="courseName"
-                 type="text"
-                 maxlength="80"
-                 required
-                 placeholder="e.g. JEE Foundation Batch"
-                 class="w-full px-3 py-2.5 border border-gray-300 rounded-xl text-sm"/>
-        </div>
+      <form id="create-course-form" class="space-y-4">
+        <div class="p-6 space-y-4 max-h-[70vh] overflow-y-auto">
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label for="course-name" class="block text-[10px] font-extrabold text-slate-500 uppercase tracking-wider mb-1">Course Name</label>
+              <input id="course-name"
+                     name="courseName"
+                     type="text"
+                     maxlength="80"
+                     required
+                     placeholder="e.g. JEE Foundation Batch"
+                     class="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-blue-100 transition"/>
+            </div>
 
-        <div>
-          <label for="course-description" class="block text-sm font-medium text-gray-700 mb-1">Description</label>
-          <textarea id="course-description"
-                    name="courseDescription"
-                    rows="3"
-                    maxlength="300"
-                    placeholder="Short description for students"
-                    class="w-full px-3 py-2.5 border border-gray-300 rounded-xl text-sm resize-none"></textarea>
-        </div>
+            <div>
+              <label for="course-price" class="block text-[10px] font-extrabold text-slate-500 uppercase tracking-wider mb-1">Price (INR)</label>
+              <input id="course-price" name="coursePrice" type="number" min="0" step="1" value="0"
+                     class="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-blue-100 transition"/>
+            </div>
+          </div>
 
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
-            <label for="course-price" class="block text-sm font-medium text-gray-700 mb-1">Price (INR)</label>
-            <input id="course-price" name="coursePrice" type="number" min="0" step="1" value="0"
-                   class="w-full px-3 py-2.5 border border-gray-300 rounded-xl text-sm"/>
+            <label for="course-description" class="block text-[10px] font-extrabold text-slate-500 uppercase tracking-wider mb-1">Description</label>
+            <textarea id="course-description"
+                      name="courseDescription"
+                      rows="3"
+                      maxlength="300"
+                      placeholder="Short description for students"
+                      class="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl text-xs font-semibold resize-none focus:outline-none focus:ring-2 focus:ring-blue-100 transition"></textarea>
           </div>
-          <div>
-            <label for="course-made-for" class="block text-sm font-medium text-gray-700 mb-1">Category</label>
-            <select id="course-made-for" name="courseMadeFor" class="w-full px-3 py-2.5 border border-gray-300 rounded-xl text-sm">
-              <option value="other">Other</option>
-              <option value="jee">JEE</option>
-              <option value="neet">NEET</option>
-            </select>
+
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+              <label for="course-made-for" class="block text-[10px] font-extrabold text-slate-500 uppercase tracking-wider mb-1">Category</label>
+              <select id="course-made-for" name="courseMadeFor" class="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl text-xs font-semibold bg-white focus:outline-none focus:ring-2 focus:ring-blue-100 transition">
+                <option value="other">Other</option>
+                <option value="jee">JEE</option>
+                <option value="neet">NEET</option>
+              </select>
+            </div>
+            <div>
+              <label for="course-image" class="block text-[10px] font-extrabold text-slate-500 uppercase tracking-wider mb-1">Image URL</label>
+              <input id="course-image" name="courseImage" type="url" placeholder="https://..."
+                     class="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-blue-100 transition"/>
+            </div>
+            <div>
+              <label for="course-tags" class="block text-[10px] font-extrabold text-slate-500 uppercase tracking-wider mb-1">Tags</label>
+              <input id="course-tags" name="courseTags" type="text" placeholder="foundation, revision"
+                     class="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-blue-100 transition"/>
+            </div>
           </div>
+
+          <label class="inline-flex items-center gap-2 text-xs font-bold text-slate-600 cursor-pointer">
+            <input id="course-published" name="coursePublished" type="checkbox" class="rounded border-slate-300 text-blue-600 focus:ring-blue-600"/>
+            Publish course publicly
+          </label>
         </div>
 
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <div>
-            <label for="course-image" class="block text-sm font-medium text-gray-700 mb-1">Image URL</label>
-            <input id="course-image" name="courseImage" type="url" placeholder="https://..."
-                   class="w-full px-3 py-2.5 border border-gray-300 rounded-xl text-sm"/>
-          </div>
-          <div>
-            <label for="course-tags" class="block text-sm font-medium text-gray-700 mb-1">Tags (comma separated)</label>
-            <input id="course-tags" name="courseTags" type="text" placeholder="foundation, revision"
-                   class="w-full px-3 py-2.5 border border-gray-300 rounded-xl text-sm"/>
-          </div>
-        </div>
-
-        <label class="inline-flex items-center gap-2 text-sm text-gray-700">
-          <input id="course-published" name="coursePublished" type="checkbox" class="rounded border-gray-300"/>
-          Publish course immediately
-        </label>
-
-        <div class="border border-gray-200 rounded-xl p-3 bg-slate-50">
-          <div class="flex items-center justify-between mb-2">
-            <h4 class="text-sm font-semibold text-gray-700">Lectures, Video Links and PDFs</h4>
-            <button id="add-lecture-row" type="button" class="px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-garud-accent text-white">+ Add Lecture</button>
-          </div>
-          <div id="lecture-rows" class="space-y-2"></div>
-          <p class="text-xs text-gray-500 mt-2">Lecture title is required. Video link and PDFs are optional.</p>
-        </div>
-
-        <div class="pt-2 flex items-center justify-end gap-3">
+        <div class="px-6 py-4 border-t border-slate-100 bg-slate-50 flex items-center justify-end gap-3">
           <button id="cancel-create-course"
                   type="button"
-                  class="px-4 py-2.5 rounded-xl border border-gray-300 text-gray-700 font-medium hover:bg-gray-50">
+                  class="text-xs font-bold text-slate-500 hover:text-slate-700 mr-2">
             Cancel
           </button>
           <button id="submit-create-course"
                   type="submit"
-                  class="px-4 py-2.5 rounded-xl bg-garud-highlight text-white font-semibold hover:opacity-95">
-            Save Course
+                  class="px-5 py-2.5 rounded-xl bg-blue-600 text-white font-bold text-xs hover:bg-blue-700 transition shadow-sm">
+            Create Course
           </button>
         </div>
       </form>

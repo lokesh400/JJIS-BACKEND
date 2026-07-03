@@ -259,6 +259,10 @@ io.on('connection', (socket) => {
   });
 });
 
+app.get('/account_delete', (req, res) => {
+  res.send("We Do not allow to delete account , but you can diable or block your account. You can contect on email ggiven on the website.")
+})
+
 const PORT = process.env.PORT || 5000;
 server.listen(PORT, () => {
   console.log(`🚀 Jeevan Jyoti International School running at http://localhost:${PORT}`);

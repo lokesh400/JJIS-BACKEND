@@ -183,7 +183,7 @@ app.get('/health', (req, res) => res.status(200).send('OK'));
 
 function startKeepAlive() {
   setInterval(async () => {
-    const result = await axios.get('https://dashboard.garudclasses.com/health', { timeout: 5000 }).catch(err => {
+    const result = await axios.get('https://jjisbackend.onrender.com/health', { timeout: 5000 }).catch(err => {
       console.error('Keep-alive error:', err.message);
       return null;
     });

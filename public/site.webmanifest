@@ -1,7 +1,7 @@
 {
-  "name": "GARUD Classes Test Portal",
-  "short_name": "GARUD Classes",
-  "description": "Online mock tests and exam preparation by GARUD Classes",
+  "name": "Jeevan Jyoti International School Test Portal",
+  "short_name": "Jeevan Jyoti International School",
+  "description": "Online mock tests and exam preparation by Jeevan Jyoti International School",
   "start_url": "/login",
   "display": "standalone",
   "background_color": "#1a1a2e",

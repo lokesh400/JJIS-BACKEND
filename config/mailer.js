@@ -2,7 +2,7 @@ const brevo = require('@getbrevo/brevo');
 
 const BREVO_API_KEY = String(process.env.BREVO_API_KEY || '').trim();
 const MAIL_FROM_EMAIL = String(process.env.MAIL_FROM_EMAIL || process.env.SENDER_EMAIL || '').trim();
-const MAIL_FROM_NAME = String(process.env.MAIL_FROM_NAME || process.env.SENDER_NAME || 'Garud Classes').trim();
+const MAIL_FROM_NAME = String(process.env.MAIL_FROM_NAME || process.env.SENDER_NAME || 'Jeevan Jyoti International School').trim();
 
 let transactionalApi = null;
 
@@ -25,7 +25,7 @@ function getSender() {
 
   return {
     email: MAIL_FROM_EMAIL,
-    name: MAIL_FROM_NAME || 'Garud Classes',
+    name: MAIL_FROM_NAME || 'Jeevan Jyoti International School',
   };
 }
 
@@ -39,8 +39,8 @@ async function sendTransactionalMail({ toEmail, toName, subject, htmlContent, te
 
   payload.to = [{ email: String(toEmail).trim(), name: String(toName || '').trim() || undefined }];
   payload.sender = getSender();
-  payload.subject = String(subject || '').trim() || 'Garud Classes Notification';
-  payload.htmlContent = String(htmlContent || '').trim() || '<p>Notification from Garud Classes.</p>';
+  payload.subject = String(subject || '').trim() || 'Jeevan Jyoti International School Notification';
+  payload.htmlContent = String(htmlContent || '').trim() || '<p>Notification from Jeevan Jyoti International School.</p>';
   if (textContent) {
     payload.textContent = String(textContent).trim();
   }
@@ -52,7 +52,7 @@ async function sendPasswordResetOtpEmail({ toEmail, otp, expiresInMinutes = 10 }
   const safeOtp = String(otp || '').trim();
   const safeExpiry = Number(expiresInMinutes) > 0 ? Number(expiresInMinutes) : 10;
 
-  const subject = 'Your Garud Classes password reset OTP';
+  const subject = 'Your Jeevan Jyoti International School password reset OTP';
   const htmlContent = `
     <div style="font-family:Arial,sans-serif;line-height:1.5;color:#0f172a;max-width:560px;margin:0 auto;padding:16px;">
       <h2 style="margin:0 0 12px;">Password Reset OTP</h2>
@@ -77,7 +77,7 @@ async function sendPasswordResetLinkEmail({ toEmail, resetUrl, expiresInMinutes 
   const safeUrl = String(resetUrl || '').trim();
   const safeExpiry = Number(expiresInMinutes) > 0 ? Number(expiresInMinutes) : 10;
 
-  const subject = 'Reset your Garud Classes password';
+  const subject = 'Reset your Jeevan Jyoti International School password';
   const htmlContent = `
     <div style="font-family:Arial,sans-serif;line-height:1.5;color:#0f172a;max-width:560px;margin:0 auto;padding:16px;">
       <h2 style="margin:0 0 12px;">Password Reset</h2>

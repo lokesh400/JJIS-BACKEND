@@ -1,7 +1,7 @@
 {
-  "name": "garud-classes-backend",
+  "name": "jeevan-jyoti-international-backend",
   "version": "1.0.0",
-  "description": "Backend for Garud Classes Test Portal",
+  "description": "Backend for Jeevan Jyoti International School Test Portal",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",

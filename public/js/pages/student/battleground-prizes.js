@@ -5,13 +5,13 @@ document.addEventListener('DOMContentLoaded', async () => {
   const milestones = [
     {
       streakDays: 50,
-      title: 'Garud Classes Bottle',
+      title: 'Jeevan Jyoti International School Bottle',
       note: 'Hydration reward for your first big consistency streak.',
       accentClass: 'from-cyan-500 to-blue-600',
     },
     {
       streakDays: 100,
-      title: 'Garud Classes T-Shirt',
+      title: 'Jeevan Jyoti International School T-Shirt',
       note: 'You earned a wearable badge of battleground discipline.',
       accentClass: 'from-emerald-500 to-teal-600',
     },
@@ -23,7 +23,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     },
     {
       streakDays: 365,
-      title: 'Garud Classes Jacket',
+      title: 'Jeevan Jyoti International School Jacket',
       note: 'Legendary one-year streak reward.',
       accentClass: 'from-amber-500 to-orange-600',
     },

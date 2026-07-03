@@ -507,7 +507,7 @@ async function downloadAnswerKeySectionwiseHandler(req, res) {
     doc.fillColor('#94a3b8') // light slate gray
       .font('Helvetica')
       .fontSize(7)
-      .text('Generated automatically by Garud Classes Test Portal', left, footerY, { width: contentW / 2, align: 'left' });
+      .text('Generated automatically by Jeevan Jyoti International School Test Portal', left, footerY, { width: contentW / 2, align: 'left' });
       
     doc.text('Page 1 of 1', left + contentW / 2, footerY, { width: contentW / 2, align: 'right' });
 
@@ -1505,7 +1505,7 @@ router.get('/:id/export/excel', auth, adminOrCoordinator, async (req, res) => {
       <body>
         <table>
           <tr>
-            <th colspan="${5 + testSections.length * 4 + 8}" class="header-title">🦅 GARUD CLASSES — OMR TEST RESULTS LEADERBOARD</th>
+            <th colspan="${5 + testSections.length * 4 + 8}" class="header-title">🦅 JEEVAN JYOTI INTERNATIONAL SCHOOL — OMR TEST RESULTS LEADERBOARD</th>
           </tr>
           <tr class="meta-row">
             <td colspan="${5 + testSections.length * 4 + 8}" class="text-left">

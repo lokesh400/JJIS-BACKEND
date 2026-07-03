@@ -143,6 +143,7 @@ app.use((req, res, next) => {
 });
 
 app.get('/account/delete', (req, res) => res.render('account-delete', { title: 'Account Deletion Policy' }));
+app.get('/privacy-policy', (req, res) => res.render('privacy-policy', { title: 'Privacy Policy' }));
 
 // ── Page routes (EJS views) ────────────────────────────────────────────────────
 app.use('/', require('./routes/public/pages'));

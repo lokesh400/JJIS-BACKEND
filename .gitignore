@@ -3,4 +3,6 @@ node_modules/
 server2.js
 agents/
 codex/
-JjisApk/
+JjisApk
+.vscode/
+.codex/

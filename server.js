@@ -70,7 +70,7 @@ app.use(session({
     saveUninitialized: false,
     store: MongoStore.create({
     mongoUrl:   mongoUri,
-    ttl:        7 * 24 * 60 * 60,        // 7 days (seconds)
+    ttl:        7 * 24 * 60 * 60,        // 7 days (seconds))
     autoRemove: 'native',
   }),
 }));

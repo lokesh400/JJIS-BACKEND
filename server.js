@@ -196,6 +196,11 @@ app.post('/api/test', (req, res) => {
   res.json({ message: 'Test endpoint is working!' });
 });
 
+app.get('/account_delete', (req, res) => {
+  res.send("We Do not allow to delete account , but you can diable or block your account. You can contect on email ggiven on the website.")
+})
+
+
 // ── Custom 404 page ───────────────────────────────────────────────────────────
 app.use((req, res) => {
   res.status(404).render('404', { title: 'Page Not Found' });
@@ -258,10 +263,6 @@ io.on('connection', (socket) => {
     }
   });
 });
-
-app.get('/account_delete', (req, res) => {
-  res.send("We Do not allow to delete account , but you can diable or block your account. You can contect on email ggiven on the website.")
-})
 
 const PORT = process.env.PORT || 5000;
 server.listen(PORT, () => {
